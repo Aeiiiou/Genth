@@ -488,3 +488,105 @@ button.primary:disabled {
 .feed__run {
   color: var(--accent);
 }
+
+.btn-stack {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-stack .primary {
+  flex: 1;
+}
+
+button.secondary {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+button.secondary:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.setup {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(242, 184, 75, 0.12);
+  border: 1px solid rgba(242, 184, 75, 0.35);
+  color: #f6d38f;
+}
+
+.commits {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.commits__toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.commits ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 180px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.commits li {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.commits__repo {
+  color: var(--muted);
+}
+
+.commits__sha {
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.commits__sha:hover {
+  text-decoration: underline;
+}
+
+.commits__msg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--panel-raised);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.feed__warn {
+  color: var(--waiting);
+}

@@ -21,6 +21,26 @@ export interface ServerRun {
   error: string | null
 }
 
+export interface GitHubStatus {
+  ready: boolean
+  problem: string | null
+  author: string
+  repositories: string[]
+  today?: string
+  tokenConfigured: boolean
+}
+
+export interface StoredCommit {
+  id: number
+  repo: string
+  sha: string
+  message: string
+  committedAt: string
+  url: string
+  isMerge: boolean
+  branches: string[]
+}
+
 export class ApiError extends Error {
   readonly status: number
 
@@ -45,4 +65,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   recentEvents: (limit = 20) => request<ServerEvent[]>(`/events?limit=${limit}`),
   startDemoRun: () => request<ServerRun>('/runs/mock', { method: 'POST', body: '{}' }),
+  startGitHubRun: () => request<ServerRun>('/runs/github', { method: 'POST', body: '{}' }),
+  githubStatus: () => request<GitHubStatus>('/github/status'),
+  commits: (date?: string) =>
+    request<{ date: string; commits: StoredCommit[] }>(date ? `/commits?date=${encodeURIComponent(date)}` : '/commits'),
 }

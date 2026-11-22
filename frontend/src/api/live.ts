@@ -19,7 +19,7 @@ const RETRY_MAX_MS = 10000
 function toFeed(e: ServerEvent): FeedItem | null {
   const message = e.payload.message
   if (typeof message !== 'string') return null
-  return { id: e.id, agentId: e.agentId, type: e.type, message, at: e.createdAt }
+  return { id: e.id, agentId: e.agentId, type: e.type, message, at: e.createdAt, warning: Boolean(e.payload.warning) }
 }
 
 function applySnapshot(s: Snapshot) {

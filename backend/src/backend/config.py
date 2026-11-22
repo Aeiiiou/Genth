@@ -14,6 +14,7 @@ DATA_DIR = Path(os.environ.get("GENTH_DATA_DIR") or _default_data_dir())
 SECRETS_DIR = DATA_DIR / "secrets"
 DB_PATH = DATA_DIR / "genth.db"
 TOKEN_PATH = SECRETS_DIR / "session_token"
+SETTINGS_PATH = DATA_DIR / "settings.json"
 
 HOST = "127.0.0.1"
 PORT = 8000
@@ -25,8 +26,8 @@ ALLOWED_ORIGINS = frozenset(
 #: Host names accepted in the Host header (any port). Blocks DNS-rebinding attacks.
 ALLOWED_HOSTNAMES = frozenset({"localhost", "127.0.0.1", "[::1]"})
 
-#: Multiplier for the demo run's pauses; 0 makes it instant (used by tests).
-MOCK_DELAY_SCALE = float(os.environ.get("GENTH_MOCK_DELAY_SCALE", "1"))
+#: Multiplier for the pauses that pace runs so the office animation can keep up; 0 = instant (tests).
+DELAY_SCALE = float(os.environ.get("GENTH_DELAY_SCALE", "1"))
 
 
 def ensure_dirs() -> None:

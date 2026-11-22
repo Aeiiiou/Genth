@@ -3,7 +3,7 @@ import tempfile
 
 # Must be set before backend.config is imported: tests never touch the real %LOCALAPPDATA%\Genth.
 os.environ["GENTH_DATA_DIR"] = tempfile.mkdtemp(prefix="genth-test-")
-os.environ["GENTH_MOCK_DELAY_SCALE"] = "0"
+os.environ["GENTH_DELAY_SCALE"] = "0"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

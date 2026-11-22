@@ -45,7 +45,7 @@ def test_mock_run_streams_events_and_records_tasks(client, auth):
 
 
 def test_second_run_rejected_while_one_is_running_and_shutdown_interrupts_it(client, auth, monkeypatch):
-    monkeypatch.setattr(config, "MOCK_DELAY_SCALE", 1.0)  # keep the first run going
+    monkeypatch.setattr(config, "DELAY_SCALE", 1.0)  # keep the first run going
     first = client.post("/api/runs/mock", headers=auth)
     assert first.status_code == 202
     assert client.post("/api/runs/mock", headers=auth).status_code == 409

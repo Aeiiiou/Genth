@@ -29,6 +29,7 @@ export interface FeedItem {
   type: string
   message: string
   at: string
+  warning?: boolean
 }
 
 const FEED_LIMIT = 40
