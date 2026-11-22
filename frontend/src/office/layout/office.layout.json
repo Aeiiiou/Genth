@@ -1,0 +1,98 @@
+{
+  "size": { "width": 24, "depth": 18 },
+  "rooms": [
+    { "id": "supervisor", "name": "Supervisor Office", "purpose": "Supervisor plans each run and checks every summary cites real commits.", "origin": [0, 0], "size": [7, 7], "floorColor": "#c8b08c" },
+    { "id": "engineering", "name": "Engineering Bay", "purpose": "GitHub agent fetches and de-duplicates commits.", "origin": [7, 0], "size": [9, 7], "floorColor": "#a7b8c8" },
+    { "id": "writing", "name": "Writing Studio", "purpose": "Summary agent drafts accomplishments with commit citations.", "origin": [16, 0], "size": [8, 7], "floorColor": "#dcc9a6" },
+    { "id": "commons", "name": "Central Commons", "purpose": "Open area connecting every room.", "origin": [0, 7], "size": [24, 4], "floorColor": "#d9d3c5" },
+    { "id": "records", "name": "Records / WAR Office", "purpose": "WAR agent maps approved summaries into WAR drafts.", "origin": [0, 11], "size": [7, 7], "floorColor": "#b9c7a9" },
+    { "id": "meeting", "name": "Meeting Room", "purpose": "Agents gather here for hand-offs.", "origin": [7, 11], "size": [6, 7], "floorColor": "#c7b7d2" },
+    { "id": "cafe", "name": "Café", "purpose": "Idle agents grab a coffee.", "origin": [13, 11], "size": [5, 7], "floorColor": "#e2bd93" },
+    { "id": "lounge", "name": "Lounge", "purpose": "Agents wait here between scheduled runs.", "origin": [18, 11], "size": [6, 7], "floorColor": "#acccc2" }
+  ],
+  "walls": [
+    { "id": "w-north", "kind": "outer", "from": [0, 0], "to": [24, 0] },
+    { "id": "w-west", "kind": "outer", "from": [0, 0], "to": [0, 18] },
+    { "id": "w-south", "kind": "outer", "from": [0, 18], "to": [24, 18] },
+    { "id": "w-east", "kind": "outer", "from": [24, 0], "to": [24, 18] },
+    { "id": "p-top", "kind": "partition", "from": [0, 7], "to": [24, 7], "doors": [{ "at": 2.8, "width": 1.4 }, { "at": 10.8, "width": 1.4 }, { "at": 19.3, "width": 1.4 }] },
+    { "id": "p-bottom", "kind": "partition", "from": [0, 11], "to": [24, 11], "doors": [{ "at": 4.6, "width": 1.4 }, { "at": 9.3, "width": 1.4 }, { "at": 13.6, "width": 3 }, { "at": 20.3, "width": 1.4 }] },
+    { "id": "p-sup-eng", "kind": "partition", "from": [7, 0], "to": [7, 7] },
+    { "id": "p-eng-wri", "kind": "partition", "from": [16, 0], "to": [16, 7] },
+    { "id": "p-rec-mee", "kind": "partition", "from": [7, 11], "to": [7, 18] },
+    { "id": "p-mee-caf", "kind": "partition", "from": [13, 11], "to": [13, 18] },
+    { "id": "p-caf-lou", "kind": "partition", "from": [18, 11], "to": [18, 18], "doors": [{ "at": 5, "width": 1.4 }] }
+  ],
+  "workstations": [
+    { "id": "ws-supervisor", "roomId": "supervisor", "position": [3.5, 2.6], "rotation": 0, "assignedAgentId": "supervisor", "label": "Supervisor desk" },
+    { "id": "ws-github", "roomId": "engineering", "position": [10, 2.4], "rotation": 0, "assignedAgentId": "github", "label": "GitHub workstation" },
+    { "id": "ws-eng-spare", "roomId": "engineering", "position": [13, 2.4], "rotation": 0, "assignedAgentId": null, "label": "Spare workstation" },
+    { "id": "ws-summary", "roomId": "writing", "position": [19.5, 3], "rotation": 0, "assignedAgentId": "summary", "label": "Summary desk" },
+    { "id": "ws-war", "roomId": "records", "position": [4, 14.6], "rotation": 0, "assignedAgentId": "war", "label": "WAR desk" }
+  ],
+  "furniture": [
+    { "id": "sup-board", "type": "statusBoard", "roomId": "supervisor", "position": [3.5, 0.12], "label": "Run status board" },
+    { "id": "sup-shelf", "type": "bookshelf", "roomId": "supervisor", "position": [6.65, 1.4], "rotation": 270 },
+    { "id": "sup-rug", "type": "rug", "roomId": "supervisor", "position": [3.5, 5] },
+    { "id": "sup-armchair", "type": "armchair", "roomId": "supervisor", "position": [5.8, 5.3], "rotation": 270 },
+    { "id": "sup-plant", "type": "plant", "roomId": "supervisor", "position": [0.6, 6.3] },
+
+    { "id": "eng-board", "type": "statusBoard", "roomId": "engineering", "position": [11.5, 0.12], "label": "Commit feed" },
+    { "id": "eng-rack-1", "type": "serverRack", "roomId": "engineering", "position": [7.7, 1.2], "rotation": 90 },
+    { "id": "eng-rack-2", "type": "serverRack", "roomId": "engineering", "position": [7.7, 2.1], "rotation": 90 },
+    { "id": "eng-whiteboard", "type": "whiteboard", "roomId": "engineering", "position": [14.6, 5.4], "rotation": 270, "label": "Retry / rate-limit notes" },
+    { "id": "eng-plant", "type": "plant", "roomId": "engineering", "position": [15.4, 0.6] },
+
+    { "id": "wri-shelf-1", "type": "bookshelf", "roomId": "writing", "position": [17, 0.3] },
+    { "id": "wri-shelf-2", "type": "bookshelf", "roomId": "writing", "position": [18.3, 0.3] },
+    { "id": "wri-shelf-3", "type": "bookshelf", "roomId": "writing", "position": [22.8, 0.3] },
+    { "id": "wri-lamp", "type": "floorLamp", "roomId": "writing", "position": [21.2, 2.4] },
+    { "id": "wri-armchair", "type": "armchair", "roomId": "writing", "position": [22.4, 5.3], "rotation": 270 },
+    { "id": "wri-rug", "type": "rug", "roomId": "writing", "position": [20, 5.1] },
+    { "id": "wri-plant", "type": "plant", "roomId": "writing", "position": [16.6, 6.3] },
+
+    { "id": "com-plant-1", "type": "plant", "roomId": "commons", "position": [0.6, 7.6] },
+    { "id": "com-plant-2", "type": "plant", "roomId": "commons", "position": [23.4, 10.4] },
+    { "id": "com-plant-3", "type": "plant", "roomId": "commons", "position": [8, 9] },
+    { "id": "com-plant-4", "type": "plant", "roomId": "commons", "position": [16, 9] },
+    { "id": "com-rug", "type": "rug", "roomId": "commons", "position": [12, 9] },
+
+    { "id": "rec-cab-1", "type": "filingCabinet", "roomId": "records", "position": [0.6, 11.5] },
+    { "id": "rec-cab-2", "type": "filingCabinet", "roomId": "records", "position": [1.2, 11.5] },
+    { "id": "rec-cab-3", "type": "filingCabinet", "roomId": "records", "position": [1.8, 11.5] },
+    { "id": "rec-board", "type": "statusBoard", "roomId": "records", "position": [0.12, 15.5], "rotation": 90, "label": "Pending approval" },
+    { "id": "rec-plant", "type": "plant", "roomId": "records", "position": [6.4, 17.4] },
+
+    { "id": "mee-table", "type": "meetingTable", "roomId": "meeting", "position": [10, 14.6] },
+    { "id": "mee-chair-1", "type": "chair", "roomId": "meeting", "position": [9.3, 13.5] },
+    { "id": "mee-chair-2", "type": "chair", "roomId": "meeting", "position": [10.7, 13.5] },
+    { "id": "mee-chair-3", "type": "chair", "roomId": "meeting", "position": [9.3, 15.7], "rotation": 180 },
+    { "id": "mee-chair-4", "type": "chair", "roomId": "meeting", "position": [10.7, 15.7], "rotation": 180 },
+    { "id": "mee-chair-5", "type": "chair", "roomId": "meeting", "position": [8.1, 14.6], "rotation": 90 },
+    { "id": "mee-chair-6", "type": "chair", "roomId": "meeting", "position": [11.9, 14.6], "rotation": 270 },
+    { "id": "mee-whiteboard", "type": "whiteboard", "roomId": "meeting", "position": [10, 17.4], "rotation": 180, "label": "Hand-off board" },
+
+    { "id": "caf-counter", "type": "coffeeCounter", "roomId": "cafe", "position": [17.5, 13.4], "rotation": 270 },
+    { "id": "caf-table-1", "type": "cafeTable", "roomId": "cafe", "position": [14.6, 13.6] },
+    { "id": "caf-stool-1", "type": "stool", "roomId": "cafe", "position": [14, 13.6] },
+    { "id": "caf-stool-2", "type": "stool", "roomId": "cafe", "position": [15.2, 13.6] },
+    { "id": "caf-table-2", "type": "cafeTable", "roomId": "cafe", "position": [14.6, 16.2] },
+    { "id": "caf-stool-3", "type": "stool", "roomId": "cafe", "position": [14, 16.2] },
+    { "id": "caf-stool-4", "type": "stool", "roomId": "cafe", "position": [15.2, 16.2] },
+    { "id": "caf-plant", "type": "plant", "roomId": "cafe", "position": [17.4, 17.4] },
+
+    { "id": "lou-sofa-1", "type": "sofa", "roomId": "lounge", "position": [21, 17.4], "rotation": 180 },
+    { "id": "lou-sofa-2", "type": "sofa", "roomId": "lounge", "position": [23.4, 14.6], "rotation": 270 },
+    { "id": "lou-table", "type": "coffeeTable", "roomId": "lounge", "position": [21.2, 15.4] },
+    { "id": "lou-rug", "type": "rug", "roomId": "lounge", "position": [21.4, 15.2] },
+    { "id": "lou-arcade", "type": "arcade", "roomId": "lounge", "position": [19.2, 11.5] },
+    { "id": "lou-lamp", "type": "floorLamp", "roomId": "lounge", "position": [23.4, 17.4] },
+    { "id": "lou-plant", "type": "plant", "roomId": "lounge", "position": [18.6, 17.4] }
+  ],
+  "agents": [
+    { "id": "supervisor", "name": "Supervisor", "role": "Plans runs, retries failed steps, verifies citations", "color": "#e0614f", "workstationId": "ws-supervisor", "usesLLM": false },
+    { "id": "github", "name": "GitHub Agent", "role": "Fetches commits (read-only) and de-duplicates by SHA", "color": "#4f86e0", "workstationId": "ws-github", "usesLLM": false },
+    { "id": "summary", "name": "Summary Agent", "role": "Drafts accomplishments, each citing commit SHAs", "color": "#e0a84f", "workstationId": "ws-summary", "usesLLM": true },
+    { "id": "war", "name": "WAR Agent", "role": "Maps approved summaries to WAR fields", "color": "#5bb57a", "workstationId": "ws-war", "usesLLM": true }
+  ]
+}
