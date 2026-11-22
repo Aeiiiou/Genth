@@ -2,7 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import { type Group, MathUtils, Vector3 } from 'three'
 import { furnitureCatalog } from '../furniture/catalog'
-import { layout } from '../layout'
+import { layout, solidSpans } from '../layout'
 import type { Wall as WallData } from '../layout/types'
 
 const THICKNESS = 0.15
@@ -20,18 +20,6 @@ const GLASS = '#8fd0ff'
 const RAIL_COLOR = '#4fa8ff'
 
 const camDir = new Vector3()
-
-/** Splits a wall into solid pieces around its door openings. Returns [start, end] offsets. */
-function solidSpans(length: number, doors: WallData['doors'] = []) {
-  const spans: [number, number][] = []
-  let cursor = 0
-  for (const door of [...doors].sort((a, b) => a.at - b.at)) {
-    if (door.at > cursor) spans.push([cursor, door.at])
-    cursor = Math.max(cursor, door.at + door.width)
-  }
-  if (cursor < length) spans.push([cursor, length])
-  return spans
-}
 
 /** Outward normal (x, z) of an outer wall, judged from which side of the office it sits on. */
 function outwardNormal(wall: WallData): [number, number] {

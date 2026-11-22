@@ -1,5 +1,5 @@
 import raw from './office.layout.json'
-import type { OfficeLayout, Rotation, Vec2 } from './types'
+import type { OfficeLayout, Rotation, Vec2, Wall } from './types'
 
 export const layout = raw as OfficeLayout
 
@@ -71,4 +71,24 @@ export function hash(seed: string, i = 0) {
   let h = 2166136261 ^ i
   for (let c = 0; c < seed.length; c++) h = Math.imul(h ^ seed.charCodeAt(c), 16777619)
   return ((h >>> 0) % 10000) / 10000
+}
+
+/** Splits a wall into solid pieces around its door openings, as [start, end] offsets along it. */
+export function solidSpans(length: number, doors: Wall['doors'] = []) {
+  const spans: [number, number][] = []
+  let cursor = 0
+  for (const door of [...doors].sort((a, b) => a.at - b.at)) {
+    if (door.at > cursor) spans.push([cursor, door.at])
+    cursor = Math.max(cursor, door.at + door.width)
+  }
+  if (cursor < length) spans.push([cursor, length])
+  return spans
+}
+
+/** Chair position of a workstation in tile coordinates. */
+export function seatOf(workstationId: string): Vec2 | undefined {
+  const ws = workstationById.get(workstationId)
+  if (!ws) return undefined
+  const [ox, oz] = rotateOffset(SEAT_OFFSET, ws.rotation)
+  return [ws.position[0] + ox, ws.position[1] + oz]
 }

@@ -90,5 +90,11 @@
     { "id": "github", "name": "GitHub Agent", "role": "Fetches commits (read-only) and de-duplicates by SHA", "color": "#4f86e0", "workstationId": "ws-github", "usesLLM": false },
     { "id": "summary", "name": "Summary Agent", "role": "Drafts accomplishments, each citing commit SHAs", "color": "#e0a84f", "workstationId": "ws-summary", "usesLLM": true },
     { "id": "war", "name": "WAR Agent", "role": "Maps approved summaries to WAR fields", "color": "#5bb57a", "workstationId": "ws-war", "usesLLM": true }
-  ]
+  ],
+  "spots": {
+    "meeting": [[9.25, 12.75], [10.75, 12.75], [9.25, 16.75], [10.75, 16.75]],
+    "cafe": [[16.25, 12.25], [16.25, 14.75], [13.75, 14.75], [15.75, 16.25]],
+    "lounge": [[20.25, 15.75], [22.25, 15.25], [21.25, 16.25], [21.75, 14.25]],
+    "commons": [[5.25, 9.25], [10.25, 9.75], [13.75, 8.25], [18.75, 9.25]]
+  }
 }

@@ -1,4 +1,7 @@
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("backend.app:app", host="127.0.0.1", port=8000, reload=True)
+    from backend import config
+
+    # Bind to loopback only: Genth is never reachable from the network.
+    uvicorn.run("backend.app:app", host=config.HOST, port=config.PORT, reload=True)

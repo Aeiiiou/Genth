@@ -1,27 +1,33 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-from backend import config
+from backend import config, db
+from backend.api import router
+from backend.events import EventBus
+from backend.security import LocalOnlyMiddleware, load_or_create_token
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
     config.ensure_dirs()
+    db.init_db()
+    app.state.bus = EventBus()
+    app.state.tasks = set()
     yield
+    # Stop background runs; each marks its run as interrupted.
+    for task in list(app.state.tasks):
+        task.cancel()
+    await asyncio.gather(*app.state.tasks, return_exceptions=True)
+    db.dispose()
 
 
-app = FastAPI(title="Genth", lifespan=lifespan)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def create_app() -> FastAPI:
+    app = FastAPI(title="Genth", lifespan=lifespan)
+    app.include_router(router)
+    app.add_middleware(LocalOnlyMiddleware, token=load_or_create_token())
+    return app
 
 
-@app.get("/api/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+app = create_app()

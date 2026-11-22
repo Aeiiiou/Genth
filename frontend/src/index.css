@@ -343,3 +343,148 @@ body,
   font-size: 11px;
   font-weight: 600;
 }
+
+/* Run panel */
+.run-panel {
+  top: 72px;
+  left: 16px;
+  width: 300px;
+  max-height: calc(100% - 180px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.run-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.run-panel h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.run-panel .small {
+  margin: 0;
+  font-size: 12px;
+}
+
+.run-panel .muted {
+  color: var(--muted);
+}
+
+.run-panel .error {
+  color: var(--error);
+}
+
+.conn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.conn__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--waiting);
+}
+
+.conn--live .conn__dot {
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+}
+
+.conn--offline .conn__dot {
+  background: var(--error);
+}
+
+.run-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--panel-raised);
+  border-left: 3px solid var(--muted);
+}
+
+.run-status strong {
+  text-transform: capitalize;
+}
+
+.run-status span {
+  color: var(--muted);
+}
+
+.run-status--running {
+  border-left-color: var(--busy);
+}
+
+.run-status--completed {
+  border-left-color: var(--ok);
+}
+
+.run-status--failed,
+.run-status--interrupted {
+  border-left-color: var(--error);
+}
+
+button.primary {
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #0d1430;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button.primary:disabled {
+  background: var(--panel-raised);
+  color: var(--muted);
+  cursor: default;
+}
+
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.feed li {
+  display: grid;
+  grid-template-columns: auto 8px 1fr;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.feed time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.feed__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  align-self: center;
+}
+
+.feed__run {
+  color: var(--accent);
+}

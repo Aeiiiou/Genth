@@ -14,7 +14,12 @@ export interface OfficeLayout {
   workstations: Workstation[]
   furniture: FurnitureItem[]
   agents: Agent[]
+  /** Standing positions per named spot the backend can send agents to (one agent per position). */
+  spots: Record<Exclude<SpotName, 'desk'>, Vec2[]>
 }
+
+/** Places an agent can be sent. 'desk' means the agent's own workstation chair. */
+export type SpotName = 'desk' | 'meeting' | 'cafe' | 'lounge' | 'commons'
 
 export interface Room {
   id: string
