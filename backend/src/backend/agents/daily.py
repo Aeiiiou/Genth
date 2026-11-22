@@ -44,12 +44,6 @@ def _settings() -> Settings:
 async def _summarize(ctx: RunContext, day: date, settings: Settings, key: str, llm_factory: LLMFactory) -> None:
     llm = llm_factory(settings.ai, key)
     try:
-        await ctx.move("summary", "meeting")
-        await ctx.move("supervisor", "meeting")
-        await ctx.say("supervisor", "Handing today's commits to the Summary Agent")
-        await ctx.pause(4)
-        await ctx.move("summary", "desk")
-        await ctx.move("supervisor", "desk")
         await summarize_day(ctx, day, llm, settings.tz, settings.ai.exclude_merges)
     finally:
         await llm.aclose()
@@ -71,7 +65,7 @@ async def start_daily_run(
     target = resolve_day(settings, day)
 
     async def script(ctx: RunContext) -> None:
-        await fetch_day(ctx, target, settings, token, transport=transport)
+        await fetch_day(ctx, target, settings, token, transport=transport, hand_off_to_summary=True)
         await _summarize(ctx, target, settings, key, llm_factory)
 
     label = "Daily run" if target == resolve_day(settings, None) else f"Daily run for {target.isoformat()}"
@@ -99,6 +93,9 @@ async def start_summary_run(
     target = resolve_day(settings, day)
 
     async def script(ctx: RunContext) -> None:
+        await ctx.speak("supervisor", f"Lil Ed, please re-draft {target.strftime('%b %d')} from the stored commits.")
+        await ctx.pause(2)
+        await ctx.speak("summary", "On it, boss!")
         await _summarize(ctx, target, settings, key, llm_factory)
 
     return await launch_run(bus, "summary", "Summary", script)

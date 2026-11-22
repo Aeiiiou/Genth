@@ -2,13 +2,14 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import { type Group, MathUtils, Vector3 } from 'three'
 import { furnitureCatalog } from '../furniture/catalog'
-import { layout, solidSpans } from '../layout'
+import { FLOOR_HEIGHT, layout, solidSpans } from '../layout'
 import type { Wall as WallData } from '../layout/types'
 
 const THICKNESS = 0.15
 const OUTER_TALL = 2.8
 const OUTER_CUT = 0.35
-const GLASS_HEIGHT = 1.1
+const PARTITION_HEIGHT = 1.1
+const SHAFT_HEIGHT = 2.6
 const RAIL = 0.07
 /** Windows hide once a cut-away outer wall drops below this height. */
 const WINDOW_MIN_HEIGHT = 1.8
@@ -17,7 +18,8 @@ const OUTER_BODY = '#27346a'
 const OUTER_TRIM = '#3b4c8f'
 const WINDOW = '#7fc4ff'
 const GLASS = '#8fd0ff'
-const RAIL_COLOR = '#4fa8ff'
+const PARTITION_RAIL = '#4fa8ff'
+const STEEL = '#9aa6cc'
 
 const camDir = new Vector3()
 
@@ -59,9 +61,12 @@ function wallPieces(wall: WallData): { pieces: Piece[]; horizontal: boolean } {
   return { pieces, horizontal }
 }
 
-/** Glass partition: transparent pane between a floor rail and a top rail. */
+/** Glass partition: transparent pane between a floor rail and a top rail. Shaft walls are taller, in steel. */
 function GlassWall({ wall }: { wall: WallData }) {
   const { pieces } = wallPieces(wall)
+  const shaft = wall.kind === 'shaft'
+  const GLASS_HEIGHT = shaft ? SHAFT_HEIGHT : PARTITION_HEIGHT
+  const RAIL_COLOR = shaft ? STEEL : PARTITION_RAIL
   return (
     <group>
       {pieces.map((p) => (
@@ -88,7 +93,7 @@ function GlassWall({ wall }: { wall: WallData }) {
 function mountedSpans(wall: WallData, horizontal: boolean): [number, number][] {
   const line = horizontal ? wall.from[1] : wall.from[0]
   return layout.furniture
-    .filter((f) => furnitureCatalog[f.type].wallMounted && Math.abs((horizontal ? f.position[1] : f.position[0]) - line) < 0.4)
+    .filter((f) => f.floor === wall.floor && furnitureCatalog[f.type].wallMounted && Math.abs((horizontal ? f.position[1] : f.position[0]) - line) < 0.4)
     .map((f) => {
       const c = horizontal ? f.position[0] : f.position[1]
       const half = furnitureCatalog[f.type].footprint[0] / 2 + 0.2
@@ -130,11 +135,14 @@ function Windows({ piece, horizontal, inward, blocked }: { piece: Piece; horizon
   )
 }
 
-/** Outer wall that drops to a low cut while it sits between the camera and the office. */
-function OuterWall({ wall }: { wall: WallData }) {
+/**
+ * Outer wall. On the floor in focus it drops to a low cut while it sits between the camera and the
+ * office; on floors below (`solid`) it is full storey height with lit windows facing the street.
+ */
+function OuterWall({ wall, solid = false }: { wall: WallData; solid?: boolean }) {
   const { pieces, horizontal } = wallPieces(wall)
   const normal = outwardNormal(wall)
-  const inward: [number, number] = [-normal[0], -normal[1]]
+  const inward: [number, number] = solid ? normal : [-normal[0], -normal[1]]
   const blocked = mountedSpans(wall, horizontal)
 
   const body = useRef<Group>(null)
@@ -143,7 +151,7 @@ function OuterWall({ wall }: { wall: WallData }) {
   const height = useRef(OUTER_TALL)
 
   useFrame((state, dt) => {
-    if (!body.current || !trim.current || !windows.current) return
+    if (solid || !body.current || !trim.current || !windows.current) return
     state.camera.getWorldDirection(camDir)
     // camDir points into the scene; the camera sits on the wall's outer side when it points inward.
     const inFront = -(camDir.x * normal[0] + camDir.z * normal[1]) > 0.05
@@ -162,7 +170,7 @@ function OuterWall({ wall }: { wall: WallData }) {
 
   return (
     <group>
-      <group ref={body}>
+      <group ref={body} scale={[1, solid ? FLOOR_HEIGHT / OUTER_TALL : 1, 1]}>
         {pieces.map((p) => (
           <mesh key={p.key} position={[p.x, OUTER_TALL / 2, p.z]} castShadow receiveShadow>
             <boxGeometry args={[p.sx, OUTER_TALL, p.sz]} />
@@ -175,7 +183,7 @@ function OuterWall({ wall }: { wall: WallData }) {
           <Windows key={p.key} piece={p} horizontal={horizontal} inward={inward} blocked={blocked} />
         ))}
       </group>
-      <group ref={trim} position={[0, OUTER_TALL + 0.02, 0]}>
+      <group ref={trim} position={[0, (solid ? FLOOR_HEIGHT : OUTER_TALL) + 0.02, 0]}>
         {pieces.map((p) => (
           <mesh key={p.key} position={[p.x, 0, p.z]}>
             <boxGeometry args={[p.sx + 0.02, 0.06, p.sz + 0.02]} />
@@ -187,6 +195,6 @@ function OuterWall({ wall }: { wall: WallData }) {
   )
 }
 
-export function Wall({ wall }: { wall: WallData }) {
-  return wall.kind === 'outer' ? <OuterWall wall={wall} /> : <GlassWall wall={wall} />
+export function Wall({ wall, solid = false }: { wall: WallData; solid?: boolean }) {
+  return wall.kind === 'outer' ? <OuterWall wall={wall} solid={solid} /> : <GlassWall wall={wall} />
 }

@@ -11,7 +11,7 @@ from typing import Any
 
 from sqlmodel import Session
 
-from backend.agents.registry import AGENTS, SPOTS
+from backend.agents.registry import AGENTS, valid_spot
 from backend.db import get_engine
 from backend.models import AgentEvent, event_to_dict
 
@@ -39,7 +39,7 @@ class EventBus:
     ) -> Event:
         if agent_id is not None and agent_id not in AGENTS:
             raise ValueError(f"unknown agent {agent_id!r}")
-        if type == "agent.move" and payload.get("spot") not in SPOTS:
+        if type == "agent.move" and not valid_spot(payload.get("spot")):
             raise ValueError(f"unknown spot {payload.get('spot')!r}")
 
         event = await asyncio.to_thread(self._persist, AgentEvent(type=type, agent_id=agent_id, run_id=run_id, payload=payload))

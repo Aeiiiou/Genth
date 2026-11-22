@@ -940,3 +940,102 @@ button.secondary.danger:hover:not(:disabled) {
 .history .tag {
   margin-left: 4px;
 }
+
+/* Floor switcher */
+.floors {
+  right: 16px;
+  bottom: 16px;
+  width: 230px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.floor {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.floor:hover {
+  border-color: var(--line);
+}
+
+.floor--active {
+  border-color: var(--accent);
+  background: rgba(79, 168, 255, 0.15);
+}
+
+.floor__short {
+  grid-row: span 2;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--accent);
+  text-align: center;
+}
+
+.floor__name {
+  font-size: 12px;
+}
+
+.floor__dots {
+  display: flex;
+  gap: 3px;
+  min-height: 8px;
+}
+
+.floor__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.floors__follow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 0;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.lift-sign {
+  font: 700 10px ui-monospace, Consolas, monospace;
+  color: #ffb84d;
+  background: #0b0f20;
+  border: 1px solid #3a4470;
+  border-radius: 3px;
+  padding: 1px 4px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.bubble__speech {
+  max-width: 190px;
+  white-space: normal;
+  text-align: center;
+  font-size: 11px;
+  font-style: italic;
+  color: #1c2240;
+  padding-bottom: 2px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid rgba(28, 34, 64, 0.15);
+}
+
+.status-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

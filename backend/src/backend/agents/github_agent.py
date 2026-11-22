@@ -95,6 +95,12 @@ def _short(repo: str) -> str:
     return repo.split("/", 1)[1]
 
 
+#: Agents who join the morning meeting (besides Boss Cheats at the head and MEDG presenting).
+MEETING_ATTENDEES = ("summary", "reviewer", "war", "govops")
+#: Seconds to let everyone reach the 3F meeting room (walking + elevator).
+GATHER_SECONDS = 16
+
+
 async def fetch_day(
     ctx: RunContext,
     day: date,
@@ -102,21 +108,33 @@ async def fetch_day(
     token: str,
     *,
     transport: httpx.AsyncBaseTransport | None = None,
-) -> None:
+    hand_off_to_summary: bool = False,
+) -> int:
+    """Runs the commit meeting: Boss calls everyone in, MEDG presents the day's commits as he fetches
+    them, then (optionally) carries them over to Lil Ed. Returns how many commits the day has."""
     gh_settings = settings.github
     since, until = day_window(day, settings.tz)
+    when = "today" if day == datetime.now(settings.tz).date() else day.strftime("%b %d")
 
-    await ctx.say("supervisor", "Assigning today's commit fetch")
-    await ctx.step("Hand-off to the GitHub Agent")
-    await ctx.move("github", "meeting")
-    await ctx.move("supervisor", "meeting")
-    await ctx.pause(5)
-    await ctx.move("github", "desk")
-    await ctx.move("supervisor", "desk")
-    await ctx.say("supervisor", "Waiting for the GitHub Agent", "waiting")
+    # Boss calls the meeting; everyone heads to the 3F meeting room.
+    await ctx.say("supervisor", "Calling the team meeting")
+    await ctx.speak("supervisor", "Team, meeting in the 3F meeting room!")
+    await ctx.step("Team meeting in the 3F meeting room")
+    await ctx.move("supervisor", "meeting_head")
+    await ctx.move("github", "presenter")
+    for agent in MEETING_ATTENDEES:
+        await ctx.move(agent, "meeting")
+    await ctx.say("github", "Heading to the meeting")
+    await ctx.pause(GATHER_SECONDS)
 
-    await ctx.step(f"Fetching commits for {day.isoformat()}")
+    await ctx.speak("supervisor", f"MEDG, what did we ship {when}?")
+    await ctx.pause(2)
+
+    # MEDG presents while he fetches.
+    await ctx.step(f"MEDG presenting commits for {day.isoformat()}")
     task = await ctx.start_task("github", f"Fetch commits {day.isoformat()}")
+    await ctx.say("github", "Presenting today's commits")
+    await ctx.speak("github", "Pulling the commits from GitHub…")
     records: list[CommitRecord] = []
     try:
         async with GitHubClient(token, transport=transport) as gh:
@@ -129,24 +147,27 @@ async def fetch_day(
                 except GitHubError as exc:
                     raise RunFailed(f"{repo}: {exc}") from None
                 records.extend(found.values())
-                await ctx.notice("github", f"{_short(repo)}: {len(found)} commit{'s' if len(found) != 1 else ''}",
-                                 repo=repo, count=len(found))
+                count = f"{len(found)} commit{'s' if len(found) != 1 else ''}"
+                await ctx.notice("github", f"{_short(repo)}: {count}", repo=repo, count=len(found))
+                await ctx.speak("github", f"{_short(repo)}: {count}.")
+                await ctx.pause(1.5)
             expires_at = gh.token_expires_at
     except RunFailed as exc:
         await ctx.finish_task(task, TaskStatus.FAILED)
         await ctx.say("github", "Fetch failed", "error")
+        await ctx.speak("github", "GitHub isn't cooperating, boss.")
         await ctx.say("supervisor", "Run stopped: see the feed", "error")
+        await _end_meeting(ctx)
         raise exc
 
     new, updated = await asyncio.to_thread(store_commits, records, settings.tz, ctx.run_id)
     await ctx.finish_task(task)
 
     total = len(records)
-    summary = f"{total} commit{'s' if total != 1 else ''} today ({new} new)"
-    await ctx.say("github", summary, "ok")
+    await ctx.say("github", f"{total} commit{'s' if total != 1 else ''} today ({new} new)", "ok")
+    await ctx.speak("github", f"That's {total} commit{'s' if total != 1 else ''} in total." if total else "No commits this time.")
     if updated:
         await ctx.notice("github", f"{updated} known commit{'s' if updated != 1 else ''} seen on new branches")
-
     if expires_at:
         days_left = (expires_at - datetime.now(UTC)).days
         if days_left <= EXPIRY_WARNING_DAYS:
@@ -156,7 +177,40 @@ async def fetch_day(
                 warning="token_expiring",
                 expiresAt=expires_at.isoformat(),
             )
+    await ctx.pause(2)
+
+    # Wrap up the meeting.
+    if total and hand_off_to_summary:
+        await ctx.speak("supervisor", "Thanks MEDG. Lil Ed, please turn these into accomplishments.")
+    elif total:
+        await ctx.speak("supervisor", "Thanks MEDG, good work.")
+    else:
+        await ctx.speak("supervisor", "Quiet day. Meeting adjourned!")
+    await ctx.pause(2)
+    await ctx.step("Meeting ended")
+    await _end_meeting(ctx, keep_github=bool(total and hand_off_to_summary))
+
+    if total and hand_off_to_summary:
+        # MEDG carries the commits to Lil Ed's office.
+        await ctx.move("github", "visit:summary")
+        await ctx.say("github", "Delivering the commits to Lil Ed")
+        await ctx.pause(10)
+        await ctx.speak("github", "Here are today's commits, Lil Ed.")
+        await ctx.pause(2)
+        await ctx.speak("summary", "Got them, thanks!")
+        await ctx.pause(1.5)
+        await ctx.move("github", "desk")
     await ctx.say("supervisor", "All ok", "ok")
+    return total
+
+
+async def _end_meeting(ctx: RunContext, keep_github: bool = False) -> None:
+    """Everyone leaves the meeting room for their desks."""
+    await ctx.move("supervisor", "desk")
+    for agent in MEETING_ATTENDEES:
+        await ctx.move(agent, "desk")
+    if not keep_github:
+        await ctx.move("github", "desk")
 
 
 async def start_github_run(

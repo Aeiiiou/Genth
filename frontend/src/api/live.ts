@@ -42,6 +42,9 @@ function applyEvent(e: ServerEvent) {
     case 'agent.move':
       if (e.agentId) useAgentMotion.getState().moveTo(e.agentId, p.spot as SpotName)
       break
+    case 'agent.speech':
+      if (e.agentId) office.speak(e.agentId, String(p.text ?? p.message ?? ''))
+      break
     case 'summary.ready':
     case 'summary.approved':
     case 'summary.rejected':

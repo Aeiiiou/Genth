@@ -323,3 +323,36 @@ export function BeanBag({ seed }: PieceProps) {
     </group>
   )
 }
+
+export function PingPong() {
+  return (
+    <group>
+      <Box size={[2.7, 0.06, 1.5]} position={[0, 0.76, 0]} color="#1f6f8b" />
+      <Box size={[2.7, 0.012, 0.03]} position={[0, 0.795, 0]} color="#f2f2f2" shadow={false} />
+      <Box size={[0.03, 0.012, 1.5]} position={[0, 0.795, 0]} color="#f2f2f2" shadow={false} />
+      {/* Net */}
+      <Box size={[0.02, 0.16, 1.6]} position={[0, 0.87, 0]} color="#e8e8e8" transparent opacity={0.7} shadow={false} />
+      {[-1.15, 1.15].map((x) => (
+        <Box key={x} size={[0.08, 0.73, 1.2]} position={[x, 0.365, 0]} color={METAL} />
+      ))}
+      <mesh position={[0.5, 0.82, 0.3]}>
+        <sphereGeometry args={[0.03, 8, 6]} />
+        <meshStandardMaterial color="#ff9f43" emissive="#ff9f43" emissiveIntensity={0.4} />
+      </mesh>
+    </group>
+  )
+}
+
+export function ReceptionDesk() {
+  return (
+    <group>
+      <Box size={[3, 1.05, 0.7]} position={[0, 0.525, 0]} color="#2a3566" />
+      <Box size={[3.1, 0.06, 0.8]} position={[0, 1.08, 0]} color="#e8ecff" />
+      <Box size={[2.6, 0.05, 0.02]} position={[0, 0.7, 0.36]} color="#4fa8ff" emissive="#4fa8ff" emissiveIntensity={0.9} shadow={false} />
+      <Box size={[0.6, 0.36, 0.04]} position={[-0.7, 1.32, -0.15]} color="#22262d" />
+      <Box size={[0.54, 0.3, 0.005]} position={[-0.7, 1.32, -0.127]} color="#5aa9ff" emissive="#5aa9ff" emissiveIntensity={0.7} shadow={false} />
+      <Cyl radius={0.08} height={0.16} position={[0.9, 1.19, 0]} color="#c8744f" />
+      <Blob radius={0.14} position={[0.9, 1.36, 0]} color="#4caf50" />
+    </group>
+  )
+}

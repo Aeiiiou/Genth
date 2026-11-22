@@ -1,17 +1,19 @@
 import { Html } from '@react-three/drei'
-import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
 import { type Group, MathUtils } from 'three'
-import { livePositions, useAgentMotion } from '../../state/agentMotion'
+import { livePlaces, useAgentMotion } from '../../state/agentMotion'
 import { useOfficeStore } from '../../state/officeStore'
-import { deg, seatOf, workstationById } from '../layout'
+import { deg, deskSpot, FLOOR_HEIGHT } from '../layout'
 import type { Agent, Vec2 } from '../layout/types'
+import { ELEVATOR_SECONDS_PER_FLOOR } from '../navigation/route'
 import { Selectable } from '../Selectable'
 
 const SKIN = '#f1c9a5'
 const PANTS = '#2b3354'
 /** Walking speed in tiles per second. */
 const SPEED = 2.2
+const LIFT_SPEED = FLOOR_HEIGHT / ELEVATOR_SECONDS_PER_FLOOR
 const TURN_RATE = 10
 const POSE_RATE = 8
 const STRIDE_RATE = 9
@@ -28,82 +30,83 @@ function angleDelta(a: number, b: number) {
 }
 
 /**
- * An agent: walks the paths planned by the motion store, sits at its desk, and shows its status
- * bubble. All per-frame animation goes through refs; React only re-renders when a new walk starts.
+ * An agent: walks the routes planned by the motion store (riding the elevator between floors),
+ * sits or stands on arrival, and shows its status and speech. Per-frame animation goes through
+ * refs; React only re-renders when a new walk starts, the agent changes floor, or it speaks.
  */
 export function AgentFigure({ agent }: { agent: Agent }) {
-  const ws = workstationById.get(agent.workstationId)
-  const seat = seatOf(agent.workstationId)
+  const home = deskSpot(agent.id)
   const active = useOfficeStore((s) => s.selected?.kind === 'agent' && s.selected.id === agent.id)
   const status = useOfficeStore((s) => s.agentStatus[agent.id])
+  const speech = useOfficeStore((s) => s.speech[agent.id])
+  const focusFloor = useOfficeStore((s) => s.focusFloor)
   const motion = useAgentMotion((s) => s.motions[agent.id])
+  const floor = useAgentMotion((s) => s.floors[agent.id])
+  const setFloor = useAgentMotion((s) => s.setFloor)
 
-  // Seated agents face the desk, i.e. opposite to the workstation's front.
-  const deskHeading = deg(ws?.rotation) + Math.PI
+  const saying = speech?.text ?? null
 
   const root = useRef<Group>(null)
   const facing = useRef<Group>(null)
   const legs = useRef<(Group | null)[]>([])
   const arms = useRef<(Group | null)[]>([])
   const sim = useRef({
-    pos: (seat ?? [0, 0]) as Vec2,
-    heading: deskHeading,
+    pos: (home?.at ?? [0, 0]) as Vec2,
+    y: (home?.floor ?? 0) * FLOOR_HEIGHT,
+    heading: deg(home?.facing),
     nonce: 0,
     next: 0,
     stride: 0,
     seatedness: 1, // 1 = sitting, 0 = standing
   })
 
-  // frameloop="demand": a new walk must request a frame to get the animation going.
-  const invalidate = useThree((s) => s.invalidate)
-  useEffect(() => invalidate(), [motion?.nonce, invalidate])
-
-  useFrame((state, dt) => {
+  useFrame((_, rawDt) => {
     if (!root.current || !facing.current || !motion) return
+    const dt = Math.min(rawDt, 0.1) // don't teleport after the tab was in the background
     const s = sim.current
     if (motion.nonce !== s.nonce) {
       s.nonce = motion.nonce
       s.next = 0
     }
 
-    let busy = false
-    const walking = s.next < motion.path.length
+    const step = motion.route[s.next]
+    const moving = step !== undefined
+    let walking = false
     let targetHeading = s.heading
 
-    if (walking) {
-      const [tx, tz] = motion.path[s.next]
+    if (step?.kind === 'ride') {
+      const targetY = step.floor * FLOOR_HEIGHT
+      const dy = targetY - s.y
+      if (Math.abs(dy) <= LIFT_SPEED * dt) {
+        s.y = targetY
+        s.next++
+      } else {
+        s.y += Math.sign(dy) * LIFT_SPEED * dt
+      }
+      targetHeading = Math.PI / 2 // face the door while riding
+    } else if (step?.kind === 'walk') {
+      s.y = step.floor * FLOOR_HEIGHT
+      const [tx, tz] = step.at
       const dx = tx - s.pos[0]
       const dz = tz - s.pos[1]
       const dist = Math.hypot(dx, dz)
-      const step = SPEED * dt
-      if (dist <= step) {
+      if (dist <= SPEED * dt) {
         s.pos = [tx, tz]
         s.next++
       } else {
-        s.pos = [s.pos[0] + (dx / dist) * step, s.pos[1] + (dz / dist) * step]
+        s.pos = [s.pos[0] + (dx / dist) * SPEED * dt, s.pos[1] + (dz / dist) * SPEED * dt]
       }
       if (dist > 1e-3) targetHeading = Math.atan2(dx, dz)
       s.stride += dt * STRIDE_RATE
-      busy = true
-    } else if (motion.seated) {
-      targetHeading = deskHeading
+      walking = true
+    } else if (motion.facing !== null) {
+      targetHeading = deg(motion.facing)
     }
 
-    // Turn smoothly toward the target heading.
-    const turn = angleDelta(s.heading, targetHeading)
-    if (Math.abs(turn) > 1e-3) {
-      s.heading += turn * Math.min(1, dt * TURN_RATE)
-      busy = true
-    }
+    s.heading += angleDelta(s.heading, targetHeading) * Math.min(1, dt * TURN_RATE)
 
-    // Blend between sitting and standing.
-    const sitTarget = !walking && motion.seated ? 1 : 0
-    if (Math.abs(s.seatedness - sitTarget) > 1e-3) {
-      s.seatedness = MathUtils.lerp(s.seatedness, sitTarget, Math.min(1, dt * POSE_RATE))
-      busy = true
-    } else {
-      s.seatedness = sitTarget
-    }
+    const sitTarget = !moving && motion.seated ? 1 : 0
+    s.seatedness = Math.abs(s.seatedness - sitTarget) < 1e-3 ? sitTarget : MathUtils.lerp(s.seatedness, sitTarget, Math.min(1, dt * POSE_RATE))
 
     const swing = walking ? Math.sin(s.stride) : 0
     const legBase = MathUtils.lerp(POSES.standing.leg, POSES.seated.leg, s.seatedness)
@@ -111,18 +114,20 @@ export function AgentFigure({ agent }: { agent: Agent }) {
     legs.current.forEach((l, i) => l && (l.rotation.x = legBase + swing * 0.55 * (i ? -1 : 1)))
     arms.current.forEach((a, i) => a && (a.rotation.x = armBase + swing * 0.5 * (i ? 1 : -1)))
 
-    root.current.position.set(s.pos[0], walking ? Math.abs(Math.sin(s.stride)) * 0.04 : 0, s.pos[1])
+    root.current.position.set(s.pos[0], s.y + (walking ? Math.abs(Math.sin(s.stride)) * 0.04 : 0), s.pos[1])
     facing.current.rotation.y = s.heading
-    livePositions.set(agent.id, s.pos)
 
-    if (busy) state.invalidate()
+    const currentFloor = Math.round(s.y / FLOOR_HEIGHT)
+    livePlaces.set(agent.id, { floor: currentFloor, at: s.pos })
+    if (currentFloor !== floor) setFloor(agent.id, currentFloor)
   })
 
-  if (!ws || !seat) return null
+  if (!home) return null
+  const visible = floor === focusFloor
 
   return (
-    <group ref={root} position={[seat[0], 0, seat[1]]}>
-      <group ref={facing} rotation={[0, deskHeading, 0]}>
+    <group ref={root} position={[home.at[0], home.floor * FLOOR_HEIGHT, home.at[1]]} visible={visible}>
+      <group ref={facing} rotation={[0, deg(home.facing), 0]}>
         <Selectable kind="agent" id={agent.id} footprint={[0.6, 0.6]}>
           {[-0.1, 0.1].map((x, i) => (
             <group key={x} ref={(g) => void (legs.current[i] = g)} position={[x, 0.55, 0]} rotation={[POSES.seated.leg, 0, 0]}>
@@ -150,19 +155,23 @@ export function AgentFigure({ agent }: { agent: Agent }) {
           ))}
         </Selectable>
       </group>
-      <Html position={[0, 1.7, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
-        <div className={active ? 'bubble bubble--active' : 'bubble'}>
-          <span className="bubble__name" style={{ color: agent.color }}>
-            {agent.name}
-          </span>
-          {status && (
-            <span className="bubble__status">
-              <span className={'dot dot--' + status.tone} />
-              {status.text}
+      {visible && (
+        <Html position={[0, 1.7, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
+          <div className={active ? 'bubble bubble--active' : 'bubble'}>
+            {saying && <span className="bubble__speech">{saying}</span>}
+            <span className="bubble__name" style={{ color: agent.color }}>
+              {agent.name}
             </span>
-          )}
-        </div>
-      </Html>
+            {/* Status only while working (or selected) keeps crowded rooms readable; the bar shows all. */}
+            {status && (active || status.tone === 'busy' || status.tone === 'error') && (
+              <span className="bubble__status">
+                <span className={'dot dot--' + status.tone} />
+                {status.text}
+              </span>
+            )}
+          </div>
+        </Html>
+      )}
     </group>
   )
 }

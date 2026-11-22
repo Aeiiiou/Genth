@@ -11,6 +11,7 @@ from collections.abc import Awaitable, Callable
 from sqlmodel import Session
 
 from backend import config
+from backend.agents.registry import name
 from backend.db import get_engine
 from backend.events import EventBus
 from backend.models import Run, RunStatus, Task, TaskStatus, run_to_dict, utcnow
@@ -76,8 +77,17 @@ class RunContext:
     async def say(self, agent: str, text: str, tone: str = "busy") -> None:
         await self.bus.publish("agent.status", agent_id=agent, run_id=self.run_id, text=text, tone=tone, message=text)
 
+    async def speak(self, agent: str, text: str) -> None:
+        """A line of dialogue: shown as a speech bubble over the agent and in the feed."""
+        await self.bus.publish("agent.speech", agent_id=agent, run_id=self.run_id, text=text, message=f"“{text}”")
+
     async def move(self, agent: str, spot: str) -> None:
-        message = "Back to desk" if spot == "desk" else f"Heading to the {spot}"
+        if spot == "desk":
+            message = "Back to desk"
+        elif spot.startswith("visit:"):
+            message = f"Walking over to {name(spot[6:])}"
+        else:
+            message = f"Heading to the {spot.replace('_', ' ')}"
         await self.bus.publish("agent.move", agent_id=agent, run_id=self.run_id, spot=spot, message=message)
 
     async def step(self, message: str) -> None:

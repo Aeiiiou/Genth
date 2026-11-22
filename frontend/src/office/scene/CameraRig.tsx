@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { type ComponentRef, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { MathUtils, type OrthographicCamera, Vector3 } from 'three'
 import { useOfficeStore } from '../../state/officeStore'
-import { layout } from '../layout'
+import { FLOOR_HEIGHT, layout } from '../layout'
 
 const { width: W, depth: D } = layout.size
 const UP = new Vector3(0, 1, 0)
@@ -14,7 +14,7 @@ const DISTANCE = 60
 const ELEVATION = Math.atan(1 / Math.SQRT2)
 const PAN_MARGIN = 2
 const SMOOTHING = 10
-const MIN_ZOOM_FACTOR = 0.6
+const MIN_ZOOM_FACTOR = 0.3
 const MAX_ZOOM_FACTOR = 5
 
 function isoOffset(azimuth: number) {
@@ -42,6 +42,7 @@ export function CameraRig() {
   const viewIndex = useOfficeStore((s) => s.viewIndex)
   const zoomCommand = useOfficeStore((s) => s.zoomCommand)
   const resetNonce = useOfficeStore((s) => s.resetNonce)
+  const focusFloor = useOfficeStore((s) => s.focusFloor)
 
   const azimuth = useRef(BASE_AZIMUTH + viewIndex * QUARTER)
   const zoomTarget = useRef<number | null>(null)
@@ -73,7 +74,8 @@ export function CameraRig() {
     if (resetNonce === 0 || !c) return
     const { camera, invalidate } = get()
     camera.position.sub(c.target)
-    c.target.set(0, 0, 0)
+    c.target.set(0, c.target.y, 0)
+    camera.position.add(c.target)
     zoomTarget.current = fit
     invalidate()
   }, [resetNonce, fit, get])
@@ -91,6 +93,15 @@ export function CameraRig() {
       const offset = camera.position.clone().sub(c.target).applyAxisAngle(UP, step)
       camera.position.copy(c.target).add(offset)
       azimuth.current += step
+      animating = true
+    }
+
+    // Rise or descend to the floor in focus, moving camera and target together.
+    const dy = focusFloor * FLOOR_HEIGHT - c.target.y
+    if (Math.abs(dy) > 1e-3) {
+      const stepY = Math.abs(dy) < 0.01 ? dy : dy * k
+      c.target.y += stepY
+      camera.position.y += stepY
       animating = true
     }
 

@@ -33,6 +33,7 @@ export interface FeedItem {
 }
 
 const FEED_LIMIT = 40
+const SPEECH_MS = 5000
 
 export const selectionKey = (s: Selection) => `${s.kind}:${s.id}`
 
@@ -69,6 +70,17 @@ interface OfficeState {
   /** Summary batch open in the review panel. */
   reviewing: number | null
   openReview: (batchId: number | null) => void
+
+  /** What each agent is saying right now (speech bubble), with when it disappears. */
+  speech: Record<string, { text: string; until: number }>
+  speak: (agentId: string, text: string, ms?: number) => void
+
+  /** Floor shown in the cutaway view; floors above it are hidden. */
+  focusFloor: number
+  setFocusFloor: (floor: number) => void
+  /** Switch floors automatically to keep the selected agent in view. */
+  follow: boolean
+  setFollow: (on: boolean) => void
 }
 
 export const useOfficeStore = create<OfficeState>()((set) => ({
@@ -97,6 +109,24 @@ export const useOfficeStore = create<OfficeState>()((set) => ({
   bumpReviews: () => set((s) => ({ reviewVersion: s.reviewVersion + 1 })),
   reviewing: null,
   openReview: (reviewing) => set({ reviewing }),
+  speech: {},
+  speak: (agentId, text, ms = SPEECH_MS) => {
+    const until = Date.now() + ms
+    set((s) => ({ speech: { ...s.speech, [agentId]: { text, until } } }))
+    // Clear it when it expires, unless the agent has said something newer since.
+    setTimeout(() => {
+      set((s) => {
+        if (s.speech[agentId]?.until !== until) return s
+        const rest = { ...s.speech }
+        delete rest[agentId]
+        return { speech: rest }
+      })
+    }, ms)
+  },
+  focusFloor: 1,
+  setFocusFloor: (focusFloor) => set({ focusFloor }),
+  follow: true,
+  setFollow: (follow) => set({ follow }),
   feed: [],
   addToFeed: (items) =>
     set((s) => {

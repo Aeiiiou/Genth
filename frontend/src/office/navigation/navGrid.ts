@@ -6,7 +6,7 @@
  */
 import { furnitureCatalog } from '../furniture/catalog'
 import { solidSpans } from '../layout'
-import type { FurnitureType, OfficeLayout, Rotation, Vec2 } from '../layout/types'
+import type { FurnitureType, OfficeLayout, Rotation, Vec2, Wall } from '../layout/types'
 
 export const CELL = 0.5
 /** Clearance kept around furniture so agents don't brush through it. */
@@ -15,6 +15,8 @@ const AGENT_RADIUS = 0.15
 const DOOR_MARGIN = 0.3
 const NON_BLOCKING: ReadonlySet<FurnitureType> = new Set(['rug', 'statusBoard'])
 const DESK_SIZE: Vec2 = [1.6, 0.8]
+/** How many cells around a seat a route may cross furniture to get in or out of it. */
+const SEAT_REACH = 2
 
 interface WallSpan {
   horizontal: boolean
@@ -37,7 +39,11 @@ function rotatedSize([w, d]: Vec2, rotation: Rotation | undefined): Vec2 {
   return rotation === 90 || rotation === 270 ? [d, w] : [w, d]
 }
 
-export function buildNavGrid(layout: OfficeLayout): NavGrid {
+/**
+ * Walkable grid for one floor. `walls` defaults to the layout's listed walls on that floor; the app
+ * passes `allWalls` so generated outer and elevator-shaft walls count too.
+ */
+export function buildNavGrid(layout: OfficeLayout, floor = 0, walls: Wall[] = layout.walls): NavGrid {
   const cols = Math.round(layout.size.width / CELL)
   const rows = Math.round(layout.size.depth / CELL)
   const blocked = new Uint8Array(cols * rows)
@@ -54,21 +60,24 @@ export function buildNavGrid(layout: OfficeLayout): NavGrid {
   }
 
   for (const f of layout.furniture) {
-    if (!NON_BLOCKING.has(f.type)) blockRect(f.position, rotatedSize(furnitureCatalog[f.type].footprint, f.rotation))
+    if (f.floor === floor && !NON_BLOCKING.has(f.type)) blockRect(f.position, rotatedSize(furnitureCatalog[f.type].footprint, f.rotation))
   }
-  for (const ws of layout.workstations) blockRect(ws.position, rotatedSize(DESK_SIZE, ws.rotation))
+  for (const ws of layout.workstations) {
+    if (ws.floor === floor) blockRect(ws.position, rotatedSize(DESK_SIZE, ws.rotation))
+  }
 
-  const walls: WallSpan[] = []
-  for (const w of layout.walls) {
+  const spans: WallSpan[] = []
+  for (const w of walls) {
+    if (w.floor !== floor) continue
     const horizontal = w.from[1] === w.to[1]
     const start = horizontal ? Math.min(w.from[0], w.to[0]) : Math.min(w.from[1], w.to[1])
     const length = Math.abs(horizontal ? w.to[0] - w.from[0] : w.to[1] - w.from[1])
     for (const [a, b] of solidSpans(length, w.doors)) {
-      walls.push({ horizontal, line: horizontal ? w.from[1] : w.from[0], from: start + a, to: start + b })
+      spans.push({ horizontal, line: horizontal ? w.from[1] : w.from[0], from: start + a, to: start + b })
     }
   }
 
-  return { cols, rows, blocked, walls }
+  return { cols, rows, blocked, walls: spans }
 }
 
 export function cellCenter([i, j]: Cell): Vec2 {
@@ -121,7 +130,13 @@ export function findPath(grid: NavGrid, from: Vec2, to: Vec2): Vec2[] | null {
   const goalIdx = idx(goal)
   if (startIdx === goalIdx) return [to]
 
-  const passable = (c: Cell) => !isBlocked(grid, c) || idx(c) === goalIdx || idx(c) === startIdx
+  // Seats (chairs, stools, sofas) sit inside furniture, so their cell and its neighbours are blocked.
+  // When a route starts or ends on one, allow blocked cells close to it: stepping out of / into the seat.
+  const near = (c: Cell, d: Cell) => Math.max(Math.abs(c[0] - d[0]), Math.abs(c[1] - d[1])) <= SEAT_REACH
+  const startBlocked = isBlocked(grid, start)
+  const goalBlocked = isBlocked(grid, goal)
+  const passable = (c: Cell) =>
+    !isBlocked(grid, c) || (goalBlocked && near(c, goal)) || (startBlocked && near(c, start)) || idx(c) === goalIdx || idx(c) === startIdx
   const canStep = (a: Cell, b: Cell) => passable(b) && !crossesWall(grid, cellCenter(a), cellCenter(b))
   const h = ([i, j]: Cell) => {
     const dx = Math.abs(i - goal[0])

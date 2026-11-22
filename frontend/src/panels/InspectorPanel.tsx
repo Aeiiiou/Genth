@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { furnitureCatalog } from '../office/furniture/catalog'
-import { agentById, furnitureById, layout, roomById, workstationById } from '../office/layout'
+import { agentById, floorByLevel, furnitureById, layout, roomById, workstationById } from '../office/layout'
+import { useAgentMotion } from '../state/agentMotion'
 import { type Selection, useOfficeStore } from '../state/officeStore'
 
 function Link({ to, children }: { to: Selection; children: ReactNode }) {
@@ -31,7 +32,7 @@ function RoomDetails({ id }: { id: string }) {
 
   return (
     <>
-      <p className="kicker">Room</p>
+      <p className="kicker">Room · {floorByLevel.get(room.floor)?.short}</p>
       <h2>{room.name}</h2>
       <p className="muted">{room.purpose}</p>
       <dl>
@@ -89,6 +90,8 @@ function WorkstationDetails({ id }: { id: string }) {
 
 function AgentDetails({ id }: { id: string }) {
   const agent = agentById.get(id)
+  const status = useOfficeStore((s) => s.agentStatus[id])
+  const floor = useAgentMotion((s) => s.floors[id])
   if (!agent) return null
   const ws = workstationById.get(agent.workstationId)
   return (
@@ -100,7 +103,17 @@ function AgentDetails({ id }: { id: string }) {
       </h2>
       <p className="muted">{agent.role}</p>
       <dl>
-        <Row label="Status">Idle (live status arrives in Phase 2)</Row>
+        <Row label="Status">
+          {status ? (
+            <span className="status-inline">
+              <span className={'dot dot--' + status.tone} />
+              {status.text}
+            </span>
+          ) : (
+            '…'
+          )}
+        </Row>
+        <Row label="Now on">{floorByLevel.get(floor)?.name ?? '…'}</Row>
         <Row label="Uses AI model">{agent.usesLLM ? 'Yes' : 'No: deterministic code'}</Row>
         {ws && (
           <>

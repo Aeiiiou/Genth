@@ -2,12 +2,10 @@ import { Canvas } from '@react-three/fiber'
 import { useRef } from 'react'
 import { useOfficeStore } from '../../state/officeStore'
 import { AgentFigure } from '../agents/AgentFigure'
-import { FurniturePiece } from '../furniture/FurniturePiece'
-import { Workstation } from '../furniture/Workstation'
 import { layout } from '../layout'
-import { Room } from '../rooms/Room'
-import { Wall } from '../rooms/Wall'
+import { Building } from './Building'
 import { CameraRig } from './CameraRig'
+import { City } from './City'
 import { Lighting } from './Lighting'
 
 const { width: W, depth: D } = layout.size
@@ -17,22 +15,8 @@ function Office() {
   return (
     // Layout uses tile coordinates from the north-west corner; centre it on the origin.
     <group position={[-W / 2, 0, -D / 2]}>
-      <mesh position={[W / 2, -0.4, D / 2]} receiveShadow>
-        <boxGeometry args={[W + 0.8, 0.6, D + 0.8]} />
-        <meshStandardMaterial color="#1f2747" roughness={1} />
-      </mesh>
-      {layout.rooms.map((r) => (
-        <Room key={r.id} room={r} />
-      ))}
-      {layout.walls.map((w) => (
-        <Wall key={w.id} wall={w} />
-      ))}
-      {layout.workstations.map((ws) => (
-        <Workstation key={ws.id} ws={ws} />
-      ))}
-      {layout.furniture.map((f) => (
-        <FurniturePiece key={f.id} item={f} />
-      ))}
+      <City />
+      <Building />
       {layout.agents.map((a) => (
         <AgentFigure key={a.id} agent={a} />
       ))}
@@ -55,7 +39,6 @@ export function OfficeCanvas() {
         orthographic
         shadows="percentage"
         dpr={[1, 2]}
-        frameloop="demand"
         camera={{ position: [40, 40, 40], zoom: 30, near: 0.1, far: 300 }}
         onPointerMissed={(e) => {
           // Clicking empty space clears the selection, but finishing a pan should not.
@@ -65,6 +48,7 @@ export function OfficeCanvas() {
         }}
       >
         <color attach="background" args={[BACKGROUND]} />
+        <fog attach="fog" args={[BACKGROUND, 90, 170]} />
         <Lighting />
         <CameraRig />
         <Office />

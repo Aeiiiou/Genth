@@ -170,55 +170,89 @@ def save_batch(day: date, run_id: int | None, model: str, source_ids: list[int],
         return batch.id
 
 
+#: Seconds to walk to a colleague on the same floor, and to another floor (elevator).
+SAME_FLOOR_WALK = 8
+OTHER_FLOOR_WALK = 16
+
+
 async def summarize_day(ctx: RunContext, day: date, llm: LLM, tz: ZoneInfo, exclude_merges: bool) -> int | None:
-    """Drafts and checks the day's accomplishments. Returns the new batch id (None if no commits)."""
+    """Lil Ed drafts the day's accomplishments; Glorious YK checks every citation and reports to Boss
+    Cheats. Returns the new batch id (None if there were no commits)."""
     commits = await asyncio.to_thread(load_day_commits, day, exclude_merges)
     if not commits:
         await ctx.say("summary", "No commits to summarize", "waiting")
         await ctx.notice("summary", f"No commits stored for {day.isoformat()}; nothing to summarize.")
         return None
 
-    await ctx.step("Summary Agent drafting accomplishments")
+    await ctx.step("Lil Ed drafting accomplishments")
     task = await ctx.start_task("summary", f"Draft accomplishments {day.isoformat()}")
     await ctx.say("summary", f"Drafting from {len(commits)} commit{'s' if len(commits) != 1 else ''}…")
     user, labels = build_prompt(commits, tz)
 
     result: CheckResult | None = None
+    review_task: int | None = None
     for attempt in (1, 2):
         try:
             raw = await llm.generate_json(system=SYSTEM_PROMPT, user=user, schema=RESPONSE_SCHEMA)
         except LLMError as exc:
             await ctx.finish_task(task, TaskStatus.FAILED)
             await ctx.say("summary", "Drafting failed", "error")
+            await ctx.speak("summary", "The AI isn't answering right now…")
             raise RunFailed(str(exc)) from None
 
-        await ctx.step("Supervisor checking citations")
-        await ctx.say("supervisor", "Checking every claim cites a commit…")
-        await ctx.pause(1.5)
+        # Lil Ed takes the draft to Glorious YK for the citation check.
+        await ctx.move("summary", "visit:reviewer")
+        await ctx.say("summary", "Taking the draft to Glorious YK")
+        await ctx.pause(SAME_FLOOR_WALK)
+        await ctx.speak("summary", "Glorious YK, can you check the citations?")
+        await ctx.step("Glorious YK checking citations")
+        if review_task is None:
+            review_task = await ctx.start_task("reviewer", f"Verify citations {day.isoformat()}")
+        await ctx.say("reviewer", "Checking every claim cites a commit…")
+        await ctx.pause(2)
         result = check_citations(raw, labels)
         for p in result.problems:
-            await ctx.notice("supervisor", f"Rejected: {p}")
+            await ctx.notice("reviewer", f"Rejected: {p}")
         if result.accepted:
+            n = len(result.accepted)
+            await ctx.speak("reviewer", f"All {n} statement{'s' if n != 1 else ''} cite real commits. Looks good!")
             break
+        await ctx.speak("reviewer", "None of these cite a real commit. Try again.")
+        await ctx.move("summary", "desk")
         if attempt == 1:
-            await ctx.say("supervisor", "Sent the draft back: no valid citations", "waiting")
+            await ctx.say("reviewer", "Sent the draft back: no valid citations", "waiting")
+            await ctx.say("summary", "Re-drafting…")
+            await ctx.pause(SAME_FLOOR_WALK)
             user += (
                 "\n\nYour previous answer was rejected because: " + "; ".join(result.problems[:5])
                 + ". Every accomplishment must cite labels from the input (C1, C2, ...)."
             )
 
-    assert result is not None
+    assert result is not None and review_task is not None
     if not result.accepted:
         await ctx.finish_task(task, TaskStatus.FAILED)
+        await ctx.finish_task(review_task, TaskStatus.FAILED)
         await ctx.say("summary", "Draft rejected", "error")
+        await ctx.say("reviewer", "Draft rejected", "error")
         raise RunFailed("the AI's draft had no accomplishments citing real commits, even after a retry")
 
     batch_id = await asyncio.to_thread(save_batch, day, ctx.run_id, llm.model, list(labels.values()), result.accepted)
     await ctx.finish_task(task)
+    await ctx.finish_task(review_task)
     n = len(result.accepted)
-    await ctx.say("supervisor", "All claims cite commits", "ok")
+    await ctx.say("reviewer", "All claims cite commits", "ok")
     if result.uncovered:
-        await ctx.notice("supervisor", f"{len(result.uncovered)} commit(s) not covered by any statement; check them in review.")
+        await ctx.notice("reviewer", f"{len(result.uncovered)} commit(s) not covered by any statement; check them in review.")
+    await ctx.speak("summary", "Thanks!")
+    await ctx.move("summary", "desk")
+
+    # Glorious YK reports to Boss Cheats upstairs.
+    await ctx.move("reviewer", "visit:supervisor")
+    await ctx.say("reviewer", "Reporting to Boss Cheats")
+    await ctx.pause(OTHER_FLOOR_WALK)
+    await ctx.speak("reviewer", f"Boss, the draft for {day.strftime('%b %d')} is checked and ready for review.")
+    await ctx.pause(2.5)
+    await ctx.speak("supervisor", "Great work, team. It's waiting for approval now.")
     await ctx.bus.publish(
         "summary.ready",
         agent_id="summary",
@@ -228,4 +262,6 @@ async def summarize_day(ctx: RunContext, day: date, llm: LLM, tz: ZoneInfo, excl
         message=f"{n} accomplishment{'s' if n != 1 else ''} drafted for {day.isoformat()}; awaiting your review",
     )
     await ctx.say("summary", "Awaiting your review", "waiting")
+    await ctx.pause(2)
+    await ctx.move("reviewer", "desk")
     return batch_id
