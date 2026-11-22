@@ -136,6 +136,25 @@ class AuditLog(SQLModel, table=True):
     at: datetime = Field(default_factory=utcnow, index=True)
 
 
+class DailyRun(SQLModel, table=True):
+    """Links a daily-workflow run to the work day it covered and what started it."""
+
+    __tablename__ = "daily_runs"
+
+    run_id: int = Field(foreign_key="runs.id", primary_key=True)
+    work_date: date = Field(index=True)
+    trigger: str  # "manual" | "scheduled" | "catch-up" | "retry"
+
+
+class AppState(SQLModel, table=True):
+    """Small persistent key/value facts, e.g. when the scheduler was first enabled."""
+
+    __tablename__ = "app_state"
+
+    key: str = Field(primary_key=True)
+    value: str
+
+
 def iso(dt: datetime | None) -> str | None:
     """ISO-8601 in UTC. SQLite drops tzinfo, so naive values are treated as UTC."""
     if dt is None:

@@ -6,12 +6,15 @@ from collections.abc import Callable
 from datetime import date
 
 import httpx
+from sqlmodel import Session
 
 from backend.agents.github_agent import SetupProblem, TokenProvider, check_setup, fetch_day, resolve_day
 from backend.agents.summary_agent import summarize_day
+from backend.db import get_engine
 from backend.events import EventBus
 from backend.integrations.gemini_client import GeminiClient
 from backend.integrations.llm import LLM
+from backend.models import DailyRun
 from backend.runs import RunContext, launch_run
 from backend.secret_store import get_gemini_key, get_github_token
 from backend.settings import AISettings, Settings, SettingsError, load_settings
@@ -61,6 +64,7 @@ async def start_daily_run(
     key_provider: KeyProvider = get_gemini_key,
     llm_factory: LLMFactory = default_llm_factory,
     transport: httpx.AsyncBaseTransport | None = None,
+    trigger: str = "manual",
 ) -> tuple[dict, asyncio.Task[None]]:
     settings, token = check_setup(token_provider)
     key = check_ai_setup(key_provider)
@@ -70,7 +74,16 @@ async def start_daily_run(
         await fetch_day(ctx, target, settings, token, transport=transport)
         await _summarize(ctx, target, settings, key, llm_factory)
 
-    return await launch_run(bus, "daily", "Daily run", script)
+    label = "Daily run" if target == resolve_day(settings, None) else f"Daily run for {target.isoformat()}"
+    run, task = await launch_run(bus, "daily", label, script)
+    await asyncio.to_thread(_record_daily_run, run["id"], target, trigger)
+    return run, task
+
+
+def _record_daily_run(run_id: int, day: date, trigger: str) -> None:
+    with Session(get_engine()) as s:
+        s.add(DailyRun(run_id=run_id, work_date=day, trigger=trigger))
+        s.commit()
 
 
 async def start_summary_run(

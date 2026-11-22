@@ -19,6 +19,16 @@ export interface ServerRun {
   startedAt: string
   finishedAt: string | null
   error: string | null
+  workDate?: string | null
+  trigger?: string | null
+}
+
+export interface ScheduleInfo {
+  enabled: boolean
+  time: string
+  weekdays: number[]
+  timezone: string
+  nextRunAt: string | null
 }
 
 export interface GitHubStatus {
@@ -104,7 +114,11 @@ export const api = {
   startGitHubRun: () => request<ServerRun>('/runs/github', { method: 'POST', body: '{}' }),
   githubStatus: () => request<GitHubStatus>('/github/status'),
   aiStatus: () => request<AIStatus>('/ai/status'),
-  startDailyRun: () => request<ServerRun>('/runs/daily', { method: 'POST', body: '{}' }),
+  startDailyRun: (date?: string) =>
+    request<ServerRun>('/runs/daily', { method: 'POST', body: JSON.stringify(date ? { date } : {}) }),
+  runs: (limit = 10) => request<ServerRun[]>('/runs?limit=' + limit),
+  schedule: () => request<ScheduleInfo>('/schedule'),
+  setSchedule: (enabled: boolean) => request<ScheduleInfo>('/schedule', { method: 'PUT', body: JSON.stringify({ enabled }) }),
   summaries: (status?: SummaryStatus) => request<SummaryBatch[]>(status ? '/summaries?status=' + status : '/summaries'),
   summary: (id: number) => request<SummaryBatch>('/summaries/' + id),
   editSummary: (id: number, items: ItemEdit[]) =>

@@ -1,5 +1,6 @@
 import asyncio
 import datetime as dt
+from dataclasses import replace
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
@@ -15,6 +16,7 @@ from backend.events import EventBus
 from backend.models import (
     AgentEvent,
     Commit,
+    DailyRun,
     Run,
     SummaryBatch,
     SummaryStatus,
@@ -25,8 +27,9 @@ from backend.models import (
     run_to_dict,
 )
 from backend.runs import RunAlreadyInProgress
+from backend.scheduler import next_run_at
 from backend.secret_store import get_gemini_key, get_github_token
-from backend.settings import SettingsError, load_settings
+from backend.settings import SettingsError, load_settings, save_settings
 
 router = APIRouter(prefix="/api")
 DB = Annotated[Session, Depends(session)]
@@ -51,8 +54,16 @@ def agents(bus: Bus) -> dict[str, Any]:
 
 @router.get("/runs")
 def list_runs(db: DB, limit: Annotated[int, Query(ge=1, le=100)] = 20) -> list[dict[str, Any]]:
-    runs = db.exec(select(Run).order_by(col(Run.id).desc()).limit(limit)).all()
-    return [run_to_dict(r) for r in runs]
+    rows = db.exec(
+        select(Run, DailyRun)
+        .join(DailyRun, col(DailyRun.run_id) == col(Run.id), isouter=True)
+        .order_by(col(Run.id).desc())
+        .limit(limit)
+    ).all()
+    return [
+        {**run_to_dict(r), "workDate": d.work_date.isoformat() if d else None, "trigger": d.trigger if d else None}
+        for r, d in rows
+    ]
 
 
 @router.get("/runs/{run_id}")
@@ -161,6 +172,40 @@ def list_commits(db: DB, day: Annotated[dt.date | None, Query(alias="date")] = N
     target = day or dt.datetime.now(tz).date()
     rows = db.exec(select(Commit).where(Commit.work_date == target).order_by(col(Commit.committed_at).desc())).all()
     return {"date": target.isoformat(), "commits": [commit_to_dict(c) for c in rows]}
+
+
+# --- Schedule ----------------------------------------------------------------------------------
+
+
+@router.get("/schedule")
+def get_schedule() -> dict[str, Any]:
+    try:
+        settings = load_settings()
+    except SettingsError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"settings.json: {exc}") from None
+    sched = settings.schedule
+    nxt = next_run_at(settings, dt.datetime.now(dt.UTC))
+    return {
+        "enabled": sched.enabled,
+        "time": sched.time,
+        "weekdays": list(sched.weekdays),
+        "timezone": settings.timezone,
+        "nextRunAt": nxt.isoformat() if nxt else None,
+    }
+
+
+class ScheduleIn(BaseModel):
+    enabled: bool
+
+
+@router.put("/schedule")
+def set_schedule(body: ScheduleIn) -> dict[str, Any]:
+    try:
+        settings = load_settings()
+    except SettingsError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"settings.json: {exc}") from None
+    save_settings(replace(settings, schedule=replace(settings.schedule, enabled=body.enabled)))
+    return get_schedule()
 
 
 # --- AI summaries -------------------------------------------------------------------------------

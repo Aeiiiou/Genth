@@ -37,6 +37,24 @@ class GitHubSettings:
     all_branches: bool = True
 
 
+WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_TIME = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+
+
+@dataclass(frozen=True)
+class ScheduleSettings:
+    enabled: bool = True
+    #: Local time (in Settings.timezone) of the automatic daily run, HH:MM.
+    time: str = "12:00"
+    #: Days the run happens; Monday is 0.
+    weekdays: tuple[int, ...] = (0, 1, 2, 3, 4)
+
+    @property
+    def hour_minute(self) -> tuple[int, int]:
+        h, m = self.time.split(":")
+        return int(h), int(m)
+
+
 PROVIDERS = ("gemini",)
 
 
@@ -56,6 +74,7 @@ class Settings:
     timezone: str = "Asia/Manila"
     github: GitHubSettings = field(default_factory=GitHubSettings)
     ai: AISettings = field(default_factory=AISettings)
+    schedule: ScheduleSettings = field(default_factory=ScheduleSettings)
 
     @property
     def tz(self) -> ZoneInfo:
@@ -90,7 +109,21 @@ def _parse(raw: dict) -> Settings:
         if not _MODEL.match(m):
             raise SettingsError(f"ai model name {m!r} is not valid")
 
+    sched_raw = raw.get("schedule") or {}
+    time_str = str(sched_raw.get("time", ScheduleSettings.time))
+    if not _TIME.match(time_str):
+        raise SettingsError(f"schedule.time {time_str!r} must be HH:MM (24-hour)")
+    day_names = [str(d).lower()[:3] for d in sched_raw.get("weekdays", [WEEKDAYS[i] for i in ScheduleSettings.weekdays])]
+    if bad := [d for d in day_names if d not in WEEKDAYS]:
+        raise SettingsError(f"schedule.weekdays has unknown day(s): {', '.join(bad)}")
+    schedule = ScheduleSettings(
+        enabled=bool(sched_raw.get("enabled", True)),
+        time=time_str,
+        weekdays=tuple(sorted({WEEKDAYS.index(d) for d in day_names})),
+    )
+
     return Settings(
+        schedule=schedule,
         timezone=timezone,
         github=GitHubSettings(author=author, repositories=repos, all_branches=bool(gh.get("allBranches", True))),
         ai=AISettings(
@@ -115,6 +148,11 @@ def _serialize(s: Settings) -> dict:
             "model": s.ai.model,
             "fallbackModels": list(s.ai.fallback_models),
             "excludeMerges": s.ai.exclude_merges,
+        },
+        "schedule": {
+            "enabled": s.schedule.enabled,
+            "time": s.schedule.time,
+            "weekdays": [WEEKDAYS[i] for i in s.schedule.weekdays],
         },
     }
 

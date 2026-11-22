@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { type AIStatus, ApiError, api, type GitHubStatus, type StoredCommit, type SummaryBatch } from '../api/client'
 import { agentById } from '../office/layout'
 import { type Connection, useOfficeStore } from '../state/officeStore'
+import { ScheduleSection } from './ScheduleSection'
 
 const CONNECTION_LABEL: Record<Connection, string> = {
   connecting: 'Connecting…',
@@ -146,6 +147,8 @@ export function RunPanel() {
         </button>
       </div>
       {error && <p className="error small">{error}</p>}
+
+      {live && <ScheduleSection disabled={disabled || !ready} />}
 
       {commits && (
         <div className="commits">

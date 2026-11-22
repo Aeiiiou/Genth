@@ -33,3 +33,6 @@ DELAY_SCALE = float(os.environ.get("GENTH_DELAY_SCALE", "1"))
 def ensure_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     SECRETS_DIR.mkdir(parents=True, exist_ok=True)
+
+#: Set GENTH_SCHEDULER=0 to keep the automatic daily run from starting (tests do this).
+SCHEDULER_ENABLED = os.environ.get("GENTH_SCHEDULER", "1") != "0"
