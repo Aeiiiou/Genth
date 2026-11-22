@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Build output
+dist/
+build/
+*.egg-info/
+
+# Secrets — real data lives in %LOCALAPPDATA%\Genth\, never in the repo
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+credentials*.json
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Tooling / OS
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.claude/settings.local.json
