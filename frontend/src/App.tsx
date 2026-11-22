@@ -1,4 +1,5 @@
 import { OfficeCanvas } from './office/scene/OfficeCanvas'
+import { AgentStatusBar } from './panels/AgentStatusBar'
 import { InspectorPanel } from './panels/InspectorPanel'
 import { ViewControls } from './panels/ViewControls'
 
@@ -11,6 +12,7 @@ export default function App() {
         <span>Virtual Office</span>
       </header>
       <InspectorPanel />
+      <AgentStatusBar />
       <ViewControls />
     </main>
   )

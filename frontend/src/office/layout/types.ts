@@ -24,6 +24,8 @@ export interface Room {
   origin: Vec2
   size: Vec2
   floorColor: string
+  /** Second checker-tile colour. Defaults to a slightly darker floorColor. */
+  floorAccent?: string
 }
 
 /** Outer walls cut away automatically when they sit between the camera and the office. */
@@ -66,6 +68,7 @@ export type FurnitureType =
   | 'serverRack'
   | 'coffeeTable'
   | 'arcade'
+  | 'beanBag'
 
 export interface FurnitureItem {
   id: string

@@ -1,12 +1,13 @@
+/** Cool evening ambience with a warm key light, so neon screens and lamps read clearly. */
 export function Lighting() {
   return (
     <>
-      <hemisphereLight args={['#fff6e8', '#8a7f72', 1.4]} />
-      <ambientLight intensity={0.35} />
+      <hemisphereLight args={['#c9d4ff', '#2a2f52', 1.5]} />
+      <ambientLight intensity={0.3} color="#b8c4ff" />
       <directionalLight
         position={[9, 22, 12]}
-        intensity={2.2}
-        color="#fff3e0"
+        intensity={2}
+        color="#ffe9cf"
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0004}

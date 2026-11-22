@@ -13,6 +13,7 @@ const SKIN = '#f1c9a5'
 export function AgentFigure({ agent }: { agent: Agent }) {
   const ws = workstationById.get(agent.workstationId)
   const active = useOfficeStore((s) => s.selected?.kind === 'agent' && s.selected.id === agent.id)
+  const status = useOfficeStore((s) => s.agentStatus[agent.id])
   if (!ws) return null
 
   const [ox, oz] = rotateOffset(SEAT_OFFSET, ws.rotation)
@@ -42,10 +43,17 @@ export function AgentFigure({ agent }: { agent: Agent }) {
           <meshStandardMaterial color={agent.color} roughness={0.7} />
         </mesh>
       ))}
-      <Html position={[0, 1.75, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
-        <div className={`agent-tag${active ? ' agent-tag--active' : ''}`} style={{ borderColor: agent.color }}>
-          <span className="agent-tag__dot" style={{ background: agent.color }} />
-          {agent.name}
+      <Html position={[0, 1.7, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
+        <div className={active ? 'bubble bubble--active' : 'bubble'}>
+          <span className="bubble__name" style={{ color: agent.color }}>
+            {agent.name}
+          </span>
+          {status && (
+            <span className="bubble__status">
+              <span className={'dot dot--' + status.tone} />
+              {status.text}
+            </span>
+          )}
         </div>
       </Html>
     </Selectable>

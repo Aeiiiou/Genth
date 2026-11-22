@@ -11,6 +11,7 @@ import { CameraRig } from './CameraRig'
 import { Lighting } from './Lighting'
 
 const { width: W, depth: D } = layout.size
+const BACKGROUND = '#121830'
 
 function Office() {
   return (
@@ -18,7 +19,7 @@ function Office() {
     <group position={[-W / 2, 0, -D / 2]}>
       <mesh position={[W / 2, -0.4, D / 2]} receiveShadow>
         <boxGeometry args={[W + 0.8, 0.6, D + 0.8]} />
-        <meshStandardMaterial color="#6f655a" roughness={1} />
+        <meshStandardMaterial color="#1f2747" roughness={1} />
       </mesh>
       {layout.rooms.map((r) => (
         <Room key={r.id} room={r} />
@@ -63,7 +64,7 @@ export function OfficeCanvas() {
           select(null)
         }}
       >
-        <color attach="background" args={['#e9e4da']} />
+        <color attach="background" args={[BACKGROUND]} />
         <Lighting />
         <CameraRig />
         <Office />

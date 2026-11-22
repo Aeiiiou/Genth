@@ -29,4 +29,5 @@ export const furnitureCatalog: Record<FurnitureType, CatalogEntry> = {
   serverRack: { label: 'Server rack', footprint: [0.6, 0.8], component: P.ServerRack },
   coffeeTable: { label: 'Coffee table', footprint: [1.1, 0.6], component: P.CoffeeTable },
   arcade: { label: 'Arcade cabinet', footprint: [0.7, 0.8], component: P.Arcade },
+  beanBag: { label: 'Bean bag', footprint: [0.8, 0.8], component: P.BeanBag },
 }

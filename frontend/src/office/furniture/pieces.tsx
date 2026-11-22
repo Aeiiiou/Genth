@@ -91,6 +91,13 @@ export function Bookshelf({ seed }: PieceProps) {
       {books.map((b, i) => (
         <Box key={i} size={[b.w, b.h, 0.27]} position={[b.x, b.y, 0.02]} color={b.c} shadow={false} />
       ))}
+      {hash(seed, 999) > 0.35 && (
+        <group position={[(hash(seed, 998) - 0.5) * 0.6, 1.87, 0]}>
+          <Cyl radius={0.11} radiusBottom={0.08} height={0.16} position={[0, 0.08, 0]} color="#c8744f" />
+          <Blob radius={0.17} position={[0, 0.26, 0]} color="#4caf50" />
+          <Blob radius={0.1} position={[0.12, 0.08, 0.14]} color="#3f9a45" />
+        </group>
+      )}
     </group>
   )
 }
@@ -108,8 +115,8 @@ function Couch({ width, color }: { width: number; color: string }) {
   )
 }
 
-export const Sofa = () => <Couch width={2} color="#3f7f8c" />
-export const Armchair = () => <Couch width={1} color="#a8574a" />
+export const Sofa = () => <Couch width={2} color="#2fb3b0" />
+export const Armchair = () => <Couch width={1} color="#e8604c" />
 
 export function CoffeeCounter() {
   return (
@@ -295,6 +302,24 @@ export function Arcade() {
       <Box size={[0.7, 0.08, 0.3]} position={[0, 0.98, 0.45]} color="#3b2860" />
       <Cyl radius={0.04} height={0.04} position={[-0.12, 1.04, 0.45]} color="#ffd34d" />
       <Cyl radius={0.04} height={0.04} position={[0.12, 1.04, 0.45]} color="#4dd2ff" />
+    </group>
+  )
+}
+
+const BEAN_COLORS = ['#3fc1c9', '#f6a04d', '#9b6bff']
+
+export function BeanBag({ seed }: PieceProps) {
+  const color = BEAN_COLORS[Math.floor(hash(seed) * BEAN_COLORS.length)]
+  return (
+    <group>
+      <mesh position={[0, 0.22, 0]} scale={[1, 0.6, 1]} castShadow receiveShadow>
+        <sphereGeometry args={[0.38, 12, 8]} />
+        <meshStandardMaterial color={color} roughness={0.9} flatShading />
+      </mesh>
+      <mesh position={[0, 0.32, -0.16]} scale={[1, 0.8, 0.6]} castShadow>
+        <sphereGeometry args={[0.3, 12, 8]} />
+        <meshStandardMaterial color={color} roughness={0.9} flatShading />
+      </mesh>
     </group>
   )
 }
