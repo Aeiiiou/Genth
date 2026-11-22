@@ -51,6 +51,15 @@ def check_setup(token_provider: TokenProvider = get_github_token) -> tuple[Setti
     return settings, token
 
 
+def resolve_day(settings: Settings, day: date | None) -> date:
+    """The requested day, defaulting to today in the configured time zone; never in the future."""
+    today = datetime.now(settings.tz).date()
+    target = day or today
+    if target > today:
+        raise SetupProblem("Can't work on a future date.")
+    return target
+
+
 def store_commits(records: list[CommitRecord], tz: ZoneInfo, run_id: int | None) -> tuple[int, int]:
     """Upserts commits. Returns (new, updated) counts; 'updated' means new branches were recorded."""
     new = updated = 0
@@ -159,9 +168,7 @@ async def start_github_run(
 ) -> tuple[dict, asyncio.Task[None]]:
     """Validates setup up front (so the caller can report problems), then launches the run."""
     settings, token = check_setup(token_provider)
-    target = day or datetime.now(settings.tz).date()
-    if target > datetime.now(settings.tz).date():
-        raise SetupProblem("Can't fetch commits for a future date.")
+    target = resolve_day(settings, day)
 
     async def script(ctx: RunContext) -> None:
         await fetch_day(ctx, target, settings, token, transport=transport)

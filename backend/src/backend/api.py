@@ -6,13 +6,26 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket
 from pydantic import BaseModel
 from sqlmodel import Session, col, select
 
+from backend import reviews
+from backend.agents.daily import check_ai_setup, default_llm_factory, start_daily_run, start_summary_run
 from backend.agents.github_agent import SetupProblem, check_setup, start_github_run
 from backend.agents.mock import start_mock_run
 from backend.db import session
 from backend.events import EventBus
-from backend.models import AgentEvent, Commit, Run, Task, commit_to_dict, event_to_dict, iso, run_to_dict
+from backend.models import (
+    AgentEvent,
+    Commit,
+    Run,
+    SummaryBatch,
+    SummaryStatus,
+    Task,
+    commit_to_dict,
+    event_to_dict,
+    iso,
+    run_to_dict,
+)
 from backend.runs import RunAlreadyInProgress
-from backend.secret_store import get_github_token
+from backend.secret_store import get_gemini_key, get_github_token
 from backend.settings import SettingsError, load_settings
 
 router = APIRouter(prefix="/api")
@@ -148,6 +161,145 @@ def list_commits(db: DB, day: Annotated[dt.date | None, Query(alias="date")] = N
     target = day or dt.datetime.now(tz).date()
     rows = db.exec(select(Commit).where(Commit.work_date == target).order_by(col(Commit.committed_at).desc())).all()
     return {"date": target.isoformat(), "commits": [commit_to_dict(c) for c in rows]}
+
+
+# --- AI summaries -------------------------------------------------------------------------------
+
+
+def _ai_overrides(request: Request) -> dict[str, Any]:
+    state = request.app.state
+    return {
+        "key_provider": getattr(state, "gemini_key_provider", get_gemini_key),
+        "llm_factory": getattr(state, "llm_factory", default_llm_factory),
+    }
+
+
+class DayRequest(BaseModel):
+    date: dt.date | None = None
+
+
+async def _launch(request: Request, starter) -> dict[str, Any]:
+    try:
+        run, task = await starter
+    except RunAlreadyInProgress:
+        raise HTTPException(status.HTTP_409_CONFLICT, "a run is already in progress") from None
+    except SetupProblem as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from None
+    _track(request, task)
+    return run
+
+
+@router.post("/runs/daily", status_code=status.HTTP_202_ACCEPTED)
+async def start_daily(request: Request, bus: Bus, body: DayRequest | None = None) -> dict[str, Any]:
+    """Fetch the day's commits, then draft accomplishments for review."""
+    return await _launch(
+        request,
+        start_daily_run(
+            bus,
+            body.date if body else None,
+            token_provider=_token_provider(request),
+            transport=getattr(request.app.state, "github_transport", None),
+            **_ai_overrides(request),
+        ),
+    )
+
+
+@router.post("/runs/summary", status_code=status.HTTP_202_ACCEPTED)
+async def start_summary(request: Request, bus: Bus, body: DayRequest | None = None) -> dict[str, Any]:
+    """Re-draft a day from commits already stored."""
+    return await _launch(request, start_summary_run(bus, body.date if body else None, **_ai_overrides(request)))
+
+
+@router.get("/ai/status")
+def ai_status(request: Request) -> dict[str, Any]:
+    """Whether the AI is set up. Reports only whether a key exists, never the key."""
+    try:
+        ai = load_settings().ai
+    except SettingsError as exc:
+        return {"ready": False, "problem": f"settings.json: {exc}", "keyConfigured": False}
+    try:
+        check_ai_setup(_ai_overrides(request)["key_provider"])
+        problem = None
+    except SetupProblem as exc:
+        problem = str(exc)
+    return {"ready": problem is None, "problem": problem, "provider": ai.provider, "model": ai.model, "keyConfigured": problem is None}
+
+
+@router.get("/summaries")
+def list_summaries(
+    db: DB,
+    status_filter: Annotated[SummaryStatus | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> list[dict[str, Any]]:
+    q = select(SummaryBatch)
+    if status_filter is not None:
+        q = q.where(SummaryBatch.status == status_filter)
+    batches = db.exec(q.order_by(col(SummaryBatch.id).desc()).limit(limit)).all()
+    return [reviews.batch_to_dict(db, b) for b in batches]
+
+
+def _review_call(fn, *args) -> Any:
+    try:
+        return fn(*args)
+    except reviews.NotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from None
+    except reviews.ReviewError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT if "already" in str(exc) else status.HTTP_400_BAD_REQUEST, str(exc)) from None
+
+
+@router.get("/summaries/{batch_id}")
+def get_summary(batch_id: int, db: DB) -> dict[str, Any]:
+    batch = _review_call(reviews.get_batch, db, batch_id)
+    return {**reviews.batch_to_dict(db, batch), "audit": reviews.audit_trail(db, batch_id)}
+
+
+class ItemIn(BaseModel):
+    id: int | None = None
+    text: str
+    commitIds: list[int]
+
+
+class ItemsIn(BaseModel):
+    items: list[ItemIn]
+
+
+@router.put("/summaries/{batch_id}/items")
+def edit_summary(batch_id: int, body: ItemsIn, db: DB) -> dict[str, Any]:
+    edits = [reviews.ItemEdit(text=i.text, commit_ids=i.commitIds, id=i.id) for i in body.items]
+    batch = _review_call(reviews.edit_items, db, batch_id, edits)
+    return reviews.batch_to_dict(db, batch)
+
+
+class DecisionIn(BaseModel):
+    note: str | None = None
+
+
+async def _decide(batch_id: int, db: Session, bus: EventBus, approve: bool, note: str | None) -> dict[str, Any]:
+    fn = reviews.approve if approve else reviews.reject
+    batch = _review_call(fn, db, batch_id, note)
+    verb = "approved" if approve else "rejected"
+    await bus.publish(
+        f"summary.{verb}",
+        agent_id="summary",
+        batchId=batch_id,
+        date=batch.work_date.isoformat(),
+        message=f"You {verb} the summary for {batch.work_date.isoformat()}",
+    )
+    await bus.publish(
+        "agent.status", agent_id="summary", text="Approved by you" if approve else "Rejected by you",
+        tone="ok" if approve else "waiting", message=f"Summary {verb}",
+    )
+    return reviews.batch_to_dict(db, batch)
+
+
+@router.post("/summaries/{batch_id}/approve")
+async def approve_summary(batch_id: int, db: DB, bus: Bus, body: DecisionIn | None = None) -> dict[str, Any]:
+    return await _decide(batch_id, db, bus, True, body.note if body else None)
+
+
+@router.post("/summaries/{batch_id}/reject")
+async def reject_summary(batch_id: int, db: DB, bus: Bus, body: DecisionIn | None = None) -> dict[str, Any]:
+    return await _decide(batch_id, db, bus, False, body.note if body else None)
 
 
 async def _wait_for_disconnect(ws: WebSocket) -> None:

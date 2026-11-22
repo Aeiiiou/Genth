@@ -41,6 +41,42 @@ export interface StoredCommit {
   branches: string[]
 }
 
+export interface AIStatus {
+  ready: boolean
+  problem: string | null
+  provider?: string
+  model?: string
+  keyConfigured: boolean
+}
+
+export type SummaryStatus = 'pending_review' | 'approved' | 'rejected' | 'superseded'
+
+export interface SummaryItem {
+  id: number
+  text: string
+  commitIds: number[]
+  edited: boolean
+}
+
+export interface SummaryBatch {
+  id: number
+  date: string
+  status: SummaryStatus
+  model: string
+  createdAt: string
+  reviewedAt: string | null
+  reviewNote: string | null
+  items: SummaryItem[]
+  sourceCommitIds: number[]
+  commits: StoredCommit[]
+}
+
+export interface ItemEdit {
+  id?: number
+  text: string
+  commitIds: number[]
+}
+
 export class ApiError extends Error {
   readonly status: number
 
@@ -67,6 +103,16 @@ export const api = {
   startDemoRun: () => request<ServerRun>('/runs/mock', { method: 'POST', body: '{}' }),
   startGitHubRun: () => request<ServerRun>('/runs/github', { method: 'POST', body: '{}' }),
   githubStatus: () => request<GitHubStatus>('/github/status'),
+  aiStatus: () => request<AIStatus>('/ai/status'),
+  startDailyRun: () => request<ServerRun>('/runs/daily', { method: 'POST', body: '{}' }),
+  summaries: (status?: SummaryStatus) => request<SummaryBatch[]>(status ? '/summaries?status=' + status : '/summaries'),
+  summary: (id: number) => request<SummaryBatch>('/summaries/' + id),
+  editSummary: (id: number, items: ItemEdit[]) =>
+    request<SummaryBatch>('/summaries/' + id + '/items', { method: 'PUT', body: JSON.stringify({ items }) }),
+  approveSummary: (id: number, note?: string) =>
+    request<SummaryBatch>('/summaries/' + id + '/approve', { method: 'POST', body: JSON.stringify({ note }) }),
+  rejectSummary: (id: number, note?: string) =>
+    request<SummaryBatch>('/summaries/' + id + '/reject', { method: 'POST', body: JSON.stringify({ note }) }),
   commits: (date?: string) =>
     request<{ date: string; commits: StoredCommit[] }>(date ? `/commits?date=${encodeURIComponent(date)}` : '/commits'),
 }

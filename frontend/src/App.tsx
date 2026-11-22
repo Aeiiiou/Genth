@@ -3,6 +3,7 @@ import { connectLive } from './api/live'
 import { OfficeCanvas } from './office/scene/OfficeCanvas'
 import { AgentStatusBar } from './panels/AgentStatusBar'
 import { InspectorPanel } from './panels/InspectorPanel'
+import { ReviewPanel } from './panels/ReviewPanel'
 import { RunPanel } from './panels/RunPanel'
 import { ViewControls } from './panels/ViewControls'
 
@@ -20,6 +21,7 @@ export default function App() {
       <InspectorPanel />
       <AgentStatusBar />
       <ViewControls />
+      <ReviewPanel />
     </main>
   )
 }

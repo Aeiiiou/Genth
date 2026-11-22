@@ -62,6 +62,13 @@ interface OfficeState {
   /** Recent events, newest first. */
   feed: FeedItem[]
   addToFeed: (items: FeedItem[]) => void
+
+  /** Bumped whenever a summary is drafted or reviewed, so review views refetch. */
+  reviewVersion: number
+  bumpReviews: () => void
+  /** Summary batch open in the review panel. */
+  reviewing: number | null
+  openReview: (batchId: number | null) => void
 }
 
 export const useOfficeStore = create<OfficeState>()((set) => ({
@@ -86,6 +93,10 @@ export const useOfficeStore = create<OfficeState>()((set) => ({
   setConnection: (connection) => set({ connection }),
   run: null,
   setRun: (run) => set({ run }),
+  reviewVersion: 0,
+  bumpReviews: () => set((s) => ({ reviewVersion: s.reviewVersion + 1 })),
+  reviewing: null,
+  openReview: (reviewing) => set({ reviewing }),
   feed: [],
   addToFeed: (items) =>
     set((s) => {

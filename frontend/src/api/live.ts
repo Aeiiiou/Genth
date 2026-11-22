@@ -42,6 +42,11 @@ function applyEvent(e: ServerEvent) {
     case 'agent.move':
       if (e.agentId) useAgentMotion.getState().moveTo(e.agentId, p.spot as SpotName)
       break
+    case 'summary.ready':
+    case 'summary.approved':
+    case 'summary.rejected':
+      office.bumpReviews()
+      break
     case 'run.started':
       office.setRun({ id: e.runId, status: 'running', step: p.message ?? null })
       break

@@ -8,6 +8,7 @@ from keyring.errors import KeyringError, PasswordDeleteError
 
 SERVICE = "Genth"
 GITHUB_TOKEN = "github_token"
+GEMINI_API_KEY = "gemini_api_key"
 
 
 def get_secret(name: str) -> str | None:
@@ -31,3 +32,7 @@ def delete_secret(name: str) -> bool:
 
 def get_github_token() -> str | None:
     return get_secret(GITHUB_TOKEN)
+
+
+def get_gemini_key() -> str | None:
+    return get_secret(GEMINI_API_KEY)

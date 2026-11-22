@@ -1,4 +1,4 @@
-"""Database tables. Later phases add summaries, WAR drafts and approvals."""
+"""Database tables. Later phases add WAR drafts."""
 
 from datetime import UTC, date, datetime
 from enum import StrEnum
@@ -81,6 +81,59 @@ class Commit(SQLModel, table=True):
     branches: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     first_run_id: int | None = Field(default=None, foreign_key="runs.id")
     fetched_at: datetime = Field(default_factory=utcnow)
+
+
+class SummaryStatus(StrEnum):
+    PENDING_REVIEW = "pending_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    #: A newer draft for the same day replaced this one before it was reviewed.
+    SUPERSEDED = "superseded"
+
+
+class SummaryBatch(SQLModel, table=True):
+    """One AI draft of a day's accomplishments, reviewed as a unit."""
+
+    __tablename__ = "summary_batches"
+
+    id: int | None = Field(default=None, primary_key=True)
+    work_date: date = Field(index=True)
+    run_id: int | None = Field(default=None, foreign_key="runs.id")
+    status: SummaryStatus = Field(default=SummaryStatus.PENDING_REVIEW, index=True)
+    model: str
+    #: Commits the draft was written from (ids), so the review screen can show coverage.
+    source_commit_ids: list[int] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utcnow)
+    reviewed_at: datetime | None = None
+    review_note: str | None = None
+
+
+class Accomplishment(SQLModel, table=True):
+    __tablename__ = "accomplishments"
+
+    id: int | None = Field(default=None, primary_key=True)
+    batch_id: int = Field(foreign_key="summary_batches.id", index=True)
+    position: int
+    text: str
+    #: Every accomplishment must cite at least one stored commit.
+    commit_ids: list[int] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    #: The AI's wording, kept when the reviewer edits the text.
+    original_text: str | None = None
+
+
+class AuditLog(SQLModel, table=True):
+    """Append-only record of every review action, with content before and after."""
+
+    __tablename__ = "audit_log"
+
+    id: int | None = Field(default=None, primary_key=True)
+    entity: str = Field(index=True)  # e.g. "summary_batch"
+    entity_id: int = Field(index=True)
+    action: str  # "created" | "edited" | "approved" | "rejected" | "superseded"
+    before: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    after: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    note: str | None = None
+    at: datetime = Field(default_factory=utcnow, index=True)
 
 
 def iso(dt: datetime | None) -> str | None:

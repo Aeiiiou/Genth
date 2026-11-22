@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ApiError, api, type GitHubStatus, type StoredCommit } from '../api/client'
+import { type AIStatus, ApiError, api, type GitHubStatus, type StoredCommit, type SummaryBatch } from '../api/client'
 import { agentById } from '../office/layout'
 import { type Connection, useOfficeStore } from '../state/officeStore'
 
@@ -29,6 +29,10 @@ export function RunPanel() {
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [github, setGithub] = useState<GitHubStatus | null>(null)
+  const [ai, setAi] = useState<AIStatus | null>(null)
+  const [pending, setPending] = useState<SummaryBatch[]>([])
+  const reviewVersion = useOfficeStore((s) => s.reviewVersion)
+  const openReview = useOfficeStore((s) => s.openReview)
   const [commits, setCommits] = useState<StoredCommit[] | null>(null)
   const [showCommits, setShowCommits] = useState(true)
 
@@ -37,6 +41,7 @@ export function RunPanel() {
 
   const refresh = useCallback(() => {
     api.githubStatus().then(setGithub).catch(() => setGithub(null))
+    api.aiStatus().then(setAi).catch(() => setAi(null))
     api
       .commits()
       .then((r) => setCommits(r.commits))
@@ -48,11 +53,20 @@ export function RunPanel() {
     if (live && !running) refresh()
   }, [live, running, refresh])
 
-  const start = async (kind: 'github' | 'demo') => {
+  // Drafts waiting for review: reload on connect and whenever one is drafted or decided.
+  useEffect(() => {
+    if (!live) return
+    api
+      .summaries('pending_review')
+      .then(setPending)
+      .catch(() => setPending([]))
+  }, [live, reviewVersion])
+
+  const start = async (kind: 'daily' | 'demo') => {
     setError(null)
     setStarting(true)
     try {
-      await (kind === 'github' ? api.startGitHubRun() : api.startDemoRun())
+      await (kind === 'daily' ? api.startDailyRun() : api.startDemoRun())
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) setError('A run is already in progress.')
       else if (e instanceof ApiError && e.status === 400) setError(e.message)
@@ -63,6 +77,8 @@ export function RunPanel() {
   }
 
   const disabled = !live || running || starting
+  const setupProblems = [github, ai].filter((x) => x && !x.ready && x.problem).map((x) => x!.problem!)
+  const ready = !!github?.ready && !!ai?.ready
 
   return (
     <section className="panel run-panel" aria-label="Runs">
@@ -89,21 +105,41 @@ export function RunPanel() {
         </div>
       )}
 
-      {live && github && !github.ready && github.problem && (
-        <p className="setup small">
-          <b>GitHub setup:</b> {github.problem}
-        </p>
+      {live &&
+        setupProblems.map((p) => (
+          <p key={p} className="setup small">
+            <b>Setup:</b> {p}
+          </p>
+        ))}
+
+      {pending.length > 0 && (
+        <div className="pending">
+          {pending.map((b) => (
+            <button key={b.id} type="button" className="pending__item" onClick={() => openReview(b.id)}>
+              <span>
+                <b>Review</b> {new Date(b.date + 'T00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}
+              </span>
+              <span className="muted">
+                {b.items.length} statement{b.items.length !== 1 ? 's' : ''} →
+              </span>
+            </button>
+          ))}
+        </div>
       )}
 
       <div className="btn-stack">
         <button
           type="button"
           className="primary"
-          disabled={disabled || !github?.ready}
-          onClick={() => start('github')}
-          title={github?.ready ? `Fetch ${github.author}'s commits from ${github.repositories.length} repos` : undefined}
+          disabled={disabled || !ready}
+          onClick={() => start('daily')}
+          title={
+            ready && github && ai
+              ? `Fetch ${github.author}'s commits from ${github.repositories.length} repos, then draft accomplishments with ${ai.model}`
+              : undefined
+          }
         >
-          {running ? 'Run in progress…' : "Fetch today's commits"}
+          {running ? 'Run in progress…' : 'Run today'}
         </button>
         <button type="button" className="secondary" disabled={disabled} onClick={() => start('demo')}>
           Demo run
